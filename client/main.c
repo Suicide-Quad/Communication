@@ -37,45 +37,59 @@ char *build_query(const char *host, size_t *len)
     return query;
 }
 
-void print_page(const char *host)
-{
-    char buffer[BUFFER_SIZE];
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <err.h>
 
-    //char buf[] = "Coucou" ;
-    //rewrite(STDIN_FILENO, buf, 6);
-    
-    struct addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
+#define SERVER_PORT "2048" // port utilisé pour la connexion
+
+int main(int argc, char *argv[]) {
+
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s hostname\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    char* server_hostname = argv[1];
+    struct addrinfo hints, *server_info, *p;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    struct addrinfo *res;
-    int gai = getaddrinfo(host, "80", &hints, &res);
-    if (gai != 0 && res == NULL){
-        errx(3, "error on getaddrinfo");
+    int status;
+    if ((status = getaddrinfo(server_hostname, SERVER_PORT, &hints, &server_info)) != 0) {
+        errx(EXIT_FAILURE, "%s", gai_strerror(status));
     }
 
-    int fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (fd == -1){
-        errx(3, "error on socket");
+    int client_socket;
+    for (p = server_info; p != NULL; p = p->ai_next) {
+        if ((client_socket = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            continue;
+        }
+
+        if (connect(client_socket, p->ai_addr, p->ai_addrlen) == -1) {
+            close(client_socket);
+            continue;
+        }
+
+        break;
     }
 
-    int con = connect(fd, res->ai_addr, res->ai_addrlen);
-    if (con == -1){
-        errx(3, "error on connect");
+    if (p == NULL) {
+        errx(EXIT_FAILURE, "Failed to connect to server");
     }
 
-    size_t len = strlen(host);
-    char *query = build_query(host, &len);
-    rewrite(fd, query, len);
+    freeaddrinfo(server_info);
 
-    int rd = read(fd, buffer, BUFFER_SIZE);
-
-    while (rd > 0){
-        write(1, buffer, rd);
-        rd = read(fd, buffer, BUFFER_SIZE);
+    char* message = "Hello, world!";
+    if (send(client_socket, message, strlen(message), 0) == -1) {
+        err(EXIT_FAILURE, "Failed to send message to server");
     }
 
-    freeaddrinfo(res);
-    close(fd);
+    close(client_socket);
+    exit(EXIT_SUCCESS);
 }
