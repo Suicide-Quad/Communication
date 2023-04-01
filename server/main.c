@@ -5,10 +5,45 @@
 #include <netdb.h>
 #include <err.h>
 #include "data.h"
+#include <gtk/gtk.h>
 
 #define BUFFER_SIZE 512
 #define SERVER_PORT "2048" // port utilisé pour la connexion
 #define BACKLOG 10          // nombre maximal de connexions en attente
+
+typedef struct UserInterface
+{
+    GtkWindow *window;
+    GtkImage *image;
+    GtkButton *change;
+    GtkEntry *entry;
+    Gchar *path;
+} UserInterface;
+
+void change_image(GtkWidget *widget, gpointer data)
+{
+    if (widget == 0){
+        g_print("widget");
+    }
+    UserInterface *ui = (UserInterface *)data;
+
+    //Image *image = importImage(ui->path);
+    //double angleRotation = (double)gtk_range_get_value(GTK_RANGE(ui->scale));
+    g_print("Change \n");
+    //saveImage(image, ui->path);
+    gtk_image_set_from_file(GTK_IMAGE(ui->image), ui->path);
+}
+
+void entry_changed(GtkWidget *widget, gpointer data)
+{
+    UserInterface *ui = (UserInterface *)data;
+    const gchar *sText;
+
+    sText = gtk_entry_get_text(GTK_ENTRY(widget));
+    g_print("Entry changed : %s\n", sText);
+
+    ui->entry = GTK_ENTRY(widget);
+}
 
 void rewrite(int fd, const void *buf, size_t count)
 {
@@ -39,8 +74,41 @@ struct info *echo(int fd_in, int fd_out)
     }
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
 
+    gtk_init(&argc, &argv);
+
+        // Constructs a GtkBuilder instance.
+    GtkBuilder *builder = gtk_builder_new();
+
+        // Loads the UI description.
+        // (Exits if an error occurs.)
+    GError *error = NULL;
+    if (gtk_builder_add_from_file(builder, "ui.glade", &error) == 0)
+    {
+        g_printerr("Error loading file: %s\n", error->message);
+        g_clear_error(&error);
+        return 1;
+    }
+    GtkWindow *window = GTK_WINDOW(gtk_builder_get_object(builder, "window.main"));
+    GtkImage *image = GTK_IMAGE(gtk_builder_get_object(builder, "image"));
+    GtkButton *change = GTK_BUTTON(gtk_builder_get_object(builder, "change"));
+    GtkEntry *entry = GTK_ENTRY(gtk_builder_get_object(builder, "seuil"));
+    gchar *chemin = "gui2.png";
+        // Creates the "Game" structure.
+    UserInterface ui =
+            {
+                .window = window,
+                .image = image,
+                .change = change,
+                .entry = entry,
+                .path = chemin,
+            };
+    // Connects event handlers.
+    g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    g_signal_connect(change, "clicked", G_CALLBACK(change_image), &ui);
+    g_signal_connect(entry, "activate", G_CALLBACK(entry_changed), &ui);
+    gtk_main();
     struct addrinfo hints, *server_info, *p;
 
     memset(&hints, 0, sizeof hints);
