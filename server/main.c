@@ -35,6 +35,29 @@ void change_image(GtkWidget *widget, gpointer data)
     //gtk_image_set_from_file(GTK_IMAGE(ui->image), ui->path);
 }
 
+void charge_image(GtkWidget *widget, gpointer data)
+{
+    UserInterface *ui = (UserInterface *)data;
+    g_print("Loading the image\n");
+    // on mets la progress bar à 10
+    gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(ui->progress), 0.1);
+
+    g_print("%s \n", gtk_file_chooser_get_uri(GTK_FILE_CHOOSER(widget)));
+
+    gchar *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(widget));
+
+    // gchar *filename2 = filename + 1;
+    Image *image = importImage(filename);
+    
+    image = resizeImage(image, 750);
+    saveImage(image, "gui.bmp");
+    
+
+    gtk_image_set_from_file(GTK_IMAGE(ui->image), filename);
+
+    ui->path = "gui.bmp";
+}
+
 void save_image(GtkWidget *widget, gpointer data)
 {
     if (widget == 0){
@@ -66,6 +89,7 @@ int main(int argc, char *argv[]) {
     GtkButton *change = GTK_BUTTON(gtk_builder_get_object(builder, "change"));
     GtkButton *save = GTK_BUTTON(gtk_builder_get_object(builder, "save"));
     GtkButton *exit = GTK_BUTTON(gtk_builder_get_object(builder, "exit"));
+    GtkFileChooserButton *filechooserbutton1 = GTK_FILE_CHOOSER_BUTTON(gtk_builder_get_object(builder, "file-chooser"));
     gchar *chemin = "gui2.png";
         // Creates the "Game" structure.
     UserInterface ui =
@@ -82,6 +106,7 @@ int main(int argc, char *argv[]) {
     g_signal_connect(change, "clicked", G_CALLBACK(change_image), &ui);
     g_signal_connect(save, "clicked", G_CALLBACK(save_image), &ui);
     g_signal_connect(exit, "clicked", G_CALLBACK(gtk_main_quit), NULL);
+    g_signal_connect(filechooserbutton1, "file-set", G_CALLBACK(charge_image), &ui);
     gtk_main();
 
     struct addrinfo hints, *server_info, *p;
