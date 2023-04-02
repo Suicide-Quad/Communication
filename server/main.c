@@ -4,35 +4,67 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <err.h>
+#include <string.h>
+#include <arpa/inet.h>
+
 
 #define BUFFER_SIZE 512
 #define SERVER_PORT "2048" // port utilisé pour la connexion
 #define BACKLOG 10          // nombre maximal de connexions en attente
-#define DELIMITER ':'
+#define DELIMITER ":"
+
+int send_Udp()
+{
+    int socket_desc;
+    struct sockaddr_in server_addr;
+    char client_message[] = "myserver:12.3";
+    char server_message[2000];
+    int server_struct_length = sizeof(server_addr);
+    
+    // Clean buffers:
+    memset(client_message, '\0', sizeof(client_message));
+    
+    // Create socket:
+    socket_desc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    
+    if(socket_desc < 0){
+        printf("Error while creating socket\n");
+        return -1;
+    }
+    printf("Socket created successfully\n");
+    
+    // Set port and IP:
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(47269);
+    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    
+    
+    // Send the message to server:
+    if(sendto(socket_desc, client_message, strlen(client_message), 0,
+         (struct sockaddr*)&server_addr, server_struct_length) < 0){
+        printf("Unable to send message\n");
+        return -1;
+    }
+
+    if(recvfrom(socket_desc, server_message, sizeof(server_message), -1,
+                (struct sockaddr*)&server_addr, &server_struct_length) < 0){
+        printf("Error while receiving server's msg\n");
+        return -1;
+    }
+    close(socket_desc);
+    return 0;
+}
 
 void parsing(char* buffer, ssize_t bytes_received)
 { 
         buffer[bytes_received] = '\0';
+        buffer = strchr(buffer,'\n');
+        buffer++;
         printf("Received message from client: %s\n", buffer);
-
-        char *position1;
-        char *position2;
-        int flag = 0;
-        for (int i = 0; i < bytes_received; i++) {
-            if (buffer[i] == DELIMITER){
-                flag = 1;
-            }
-            else
-            {
-                if (flag){
-                    position1+=buffer[i];
-                }
-                else {
-                    position2+=buffer[i];
-                }
-            }
-        }
-        printf("x = %d, y = %d\n", atoi(position1), atoi(position2));
+        char *position1 = strtok(buffer, DELIMITER);
+        char *position2 = strtok(buffer, DELIMITER);
+        printf("x = %s y = %s\n", position1, position2);
+        send_Udp();
 }
 
 void launch_socket()

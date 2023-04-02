@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = `pkg-config --cflags glib-2.0 gtk+-3.0` -Wall -Wextra -pthread
+CFLAGS = `pkg-config --cflags glib-2.0 gtk+-3.0` -Wall -Wextra -pthread -g
 LDLIBS = `pkg-config --libs glib-2.0 gtk+-3.0` -lm
 
 EXE = main
