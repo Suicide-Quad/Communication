@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <err.h>
-#include "data.h"
 #include <gtk/gtk.h>
 
 #define BUFFER_SIZE 512
@@ -16,8 +15,9 @@ typedef struct UserInterface
     GtkWindow *window;
     GtkImage *image;
     GtkButton *change;
-    GtkEntry *entry;
-    Gchar *path;
+    gchar *path;
+    gint x;
+    gint y;
 } UserInterface;
 
 void change_image(GtkWidget *widget, gpointer data)
@@ -28,50 +28,21 @@ void change_image(GtkWidget *widget, gpointer data)
     UserInterface *ui = (UserInterface *)data;
 
     //Image *image = importImage(ui->path);
-    //double angleRotation = (double)gtk_range_get_value(GTK_RANGE(ui->scale));
     g_print("Change \n");
+    // on print ui->x et ui->y
+    g_print("x = %d, y = %d \n", ui->x, ui->y);
     //saveImage(image, ui->path);
-    gtk_image_set_from_file(GTK_IMAGE(ui->image), ui->path);
+    //gtk_image_set_from_file(GTK_IMAGE(ui->image), ui->path);
 }
 
-void entry_changed(GtkWidget *widget, gpointer data)
+void save_image(GtkWidget *widget, gpointer data)
 {
-    UserInterface *ui = (UserInterface *)data;
-    const gchar *sText;
-
-    sText = gtk_entry_get_text(GTK_ENTRY(widget));
-    g_print("Entry changed : %s\n", sText);
-
-    ui->entry = GTK_ENTRY(widget);
-}
-
-void rewrite(int fd, const void *buf, size_t count)
-{
-    size_t nbyte = 0;
-    while(count > nbyte)
-    {
-        int temp;
-        temp = write(fd, buf, count);
-        if (temp == -1)
-            errx(1, "Error while writing the file");
-        buf += temp;
-        nbyte += temp;
+    if (widget == 0){
+        g_print("widget");
     }
-}
-
-struct info *echo(int fd_in, int fd_out)
-{
-    char buffer[BUFFER_SIZE];
-    int nbyte;
-    while(1)
-    {
-        nbyte = read(fd_in, buffer, BUFFER_SIZE);
-        if (nbyte == 0)
-           break;
-        if (nbyte == -1)
-            errx(1, "Error while reading the file");
-        return data(fd_out, buffer, nbyte);
-    }
+    //UserInterface *ui = (UserInterface *)data;
+    g_print("Save \n");
+    //saveImage(image, ui->path);
 }
 
 int main(int argc, char *argv[]) {
@@ -93,7 +64,8 @@ int main(int argc, char *argv[]) {
     GtkWindow *window = GTK_WINDOW(gtk_builder_get_object(builder, "window.main"));
     GtkImage *image = GTK_IMAGE(gtk_builder_get_object(builder, "image"));
     GtkButton *change = GTK_BUTTON(gtk_builder_get_object(builder, "change"));
-    GtkEntry *entry = GTK_ENTRY(gtk_builder_get_object(builder, "seuil"));
+    GtkButton *save = GTK_BUTTON(gtk_builder_get_object(builder, "save"));
+    GtkButton *exit = GTK_BUTTON(gtk_builder_get_object(builder, "exit"));
     gchar *chemin = "gui2.png";
         // Creates the "Game" structure.
     UserInterface ui =
@@ -101,14 +73,17 @@ int main(int argc, char *argv[]) {
                 .window = window,
                 .image = image,
                 .change = change,
-                .entry = entry,
                 .path = chemin,
+                .x = 0,
+                .y = 0
             };
     // Connects event handlers.
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     g_signal_connect(change, "clicked", G_CALLBACK(change_image), &ui);
-    g_signal_connect(entry, "activate", G_CALLBACK(entry_changed), &ui);
+    g_signal_connect(save, "clicked", G_CALLBACK(save_image), &ui);
+    g_signal_connect(exit, "clicked", G_CALLBACK(gtk_main_quit), NULL);
     gtk_main();
+
     struct addrinfo hints, *server_info, *p;
 
     memset(&hints, 0, sizeof hints);
@@ -173,9 +148,28 @@ int main(int argc, char *argv[]) {
         buffer[bytes_received] = '\0';
         printf("Received message from client: %s\n", buffer);
 
+        char *position1;
+        char *position2;
+        int test = 0;
+        for (int i = 0; i < bytes_received; i++) {
+            if (buffer[i] == ':'){
+                test = 1;
+            }
+            else{
+                if (test){
+                    position1+=buffer[i];
+                }
+                else {
+                    position2+=buffer[i];
+                }
+            }
+        }
+        ui.x = atoi(position1);
+        ui.y = atoi(position2);
+        change_image(NULL, &ui);
+        printf("x = %d, y = %d\n", ui.x, ui.y);
         close(client_socket);
     }
 
     close(server_socket);
-    exit(EXIT_SUCCESS);
 }

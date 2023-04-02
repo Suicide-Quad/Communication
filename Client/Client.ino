@@ -4,7 +4,7 @@
 // WiFi Router Login - change these to your router settings
 const char* SSID = "vym";
 const char* password = "rozavel29";
-char response[] = "HTTP/1.1 200 OK\r\n\r\nHello World!";
+char response[] = "HTTP/1.1 200 OK\r\n\r\n12:45";
 
 WiFiServer WebServer(80);
 // Web Client

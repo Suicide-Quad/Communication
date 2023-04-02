@@ -1,8 +1,8 @@
 CC = gcc
-CFLAGS = `pkg-config --cflags glib-2.0` -Wall -Wextra -pthread
-LDLIBS = `pkg-config --libs glib-2.0`
+CFLAGS = `pkg-config --cflags glib-2.0 gtk+-3.0` -Wall -Wextra -pthread
+LDLIBS = `pkg-config --libs glib-2.0 gtk+-3.0` -lm
 
-EXE = main data
+EXE = main
 
 all: $(EXE)
 
