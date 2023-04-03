@@ -60,7 +60,6 @@ void parsing(char* buffer, ssize_t bytes_received)
         buffer[bytes_received] = '\0';
         buffer = strchr(buffer,'\n');
         buffer++;
-        printf("Received message from client: %s\n", buffer);
         char *position1 = strtok(buffer, DELIMITER);
         char *position2 = strtok(buffer, DELIMITER);
         printf("x = %s y = %s\n", position1, position2);
