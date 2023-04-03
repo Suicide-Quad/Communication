@@ -6,69 +6,66 @@
 #include <err.h>
 #include <string.h>
 #include <arpa/inet.h>
-
+#include <netinet/in.h>
 
 #define BUFFER_SIZE 512
 #define SERVER_PORT "2048" // port utilisé pour la connexion
 #define BACKLOG 10          // nombre maximal de connexions en attente
 #define DELIMITER ":"
 
-int send_Udp()
-{
-    int socket_desc;
-    struct sockaddr_in server_addr;
-    char client_message[] = "myserver:12.3";
-    char server_message[2000];
-    int server_struct_length = sizeof(server_addr);
-    
-    // Clean buffers:
-    memset(client_message, '\0', sizeof(client_message));
-    
-    // Create socket:
-    socket_desc = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    
-    if(socket_desc < 0){
-        printf("Error while creating socket\n");
-        return -1;
-    }
-    printf("Socket created successfully\n");
-    
-    // Set port and IP:
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(47269);
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    
-    
-    // Send the message to server:
-    if(sendto(socket_desc, client_message, strlen(client_message), 0,
-         (struct sockaddr*)&server_addr, server_struct_length) < 0){
-        printf("Unable to send message\n");
-        return -1;
-    }
+#define HOSTNAME "localhost"
+#define PORT 47269
 
-    if(recvfrom(socket_desc, server_message, sizeof(server_message), -1,
-                (struct sockaddr*)&server_addr, &server_struct_length) < 0){
-        printf("Error while receiving server's msg\n");
-        return -1;
+int send_Udp(char *position)
+{
+    printf("Sending UDP message to client\n");
+    struct sockaddr_in servaddr;
+    int fd = socket(AF_INET,SOCK_DGRAM,0);
+    if(fd<0){
+        perror("cannot open socket");
+        return 1;
     }
-    close(socket_desc);
+    
+    bzero(&servaddr,sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = inet_addr(HOSTNAME);
+    servaddr.sin_port = htons(PORT);
+    if (sendto(fd, position, strlen(position)+1, 0, // +1 to include terminator
+               (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0){
+        perror("cannot send message");
+        close(fd);
+        return 1;
+    }
+    close(fd);
+    //close(socket_desc);
     return 0;
 }
 
 void parsing(char* buffer, ssize_t bytes_received)
 { 
-        buffer[bytes_received] = '\0';
-        buffer = strchr(buffer,'\n');
-        buffer++;
-        printf("Received message from client: %s\n", buffer);
-        char *position1 = strtok(buffer, DELIMITER);
-        char *position2 = strtok(buffer, DELIMITER);
-        printf("x = %s y = %s\n", position1, position2);
-        send_Udp();
+    printf("Parsing message from client\n");
+    printf("Buffer in parsing : %s\n",buffer);
+
+    buffer[bytes_received] = '\0';
+
+    int i = 0;
+    while(buffer[i] != 'n'){
+        i++;
+    }
+    buffer[i] = '\0';
+    buffer = buffer + i + 1;
+    printf("Received message from client: %s\n", buffer);
+    char *position1 = strtok(buffer, DELIMITER);
+    buffer += strlen(position1) + 1;
+    char *position2 = strtok(buffer, DELIMITER);
+    printf("x = %s y = %s\n", position1, position2);
+    send_Udp(position1);
+    send_Udp(position2);
 }
 
 void launch_socket()
 {
+    printf("Launching socket\n");
     struct addrinfo hints, *server_info, *p;
 
     memset(&hints, 0, sizeof hints);
@@ -130,6 +127,8 @@ void launch_socket()
         if (bytes_received == -1) {
             err(EXIT_FAILURE, "Failed to receive message from client");
         }
+        printf("Received %zd bytes from client\n", bytes_received);
+        printf("buffer = %s\n", buffer);
         parsing(buffer, bytes_received);
         close(client_socket);
     }
