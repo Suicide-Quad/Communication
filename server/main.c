@@ -43,6 +43,7 @@ int send_Udp(char *position)
 
 void parsing(char* buffer, ssize_t bytes_received)
 { 
+<<<<<<< HEAD
     printf("Parsing message from client\n");
     printf("Buffer in parsing : %s\n",buffer);
 
@@ -61,6 +62,15 @@ void parsing(char* buffer, ssize_t bytes_received)
     printf("x = %s y = %s\n", position1, position2);
     send_Udp(position1);
     send_Udp(position2);
+=======
+        buffer[bytes_received] = '\0';
+        buffer = strchr(buffer,'\n');
+        buffer++;
+        char *position1 = strtok(buffer, DELIMITER);
+        char *position2 = strtok(buffer, DELIMITER);
+        printf("x = %s y = %s\n", position1, position2);
+        send_Udp();
+>>>>>>> 97d1e45e8f70e1850c67ca7e0e5e613a27666164
 }
 
 void launch_socket()
