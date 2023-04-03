@@ -13,24 +13,29 @@
 #define BACKLOG 10          // nombre maximal de connexions en attente
 #define DELIMITER ":"
 
-#define HOSTNAME "localhost"
+#define HOSTNAME "127.0.0.1" 
 #define PORT 47269
 
-int send_Udp(char *position)
+int send_Udp(char* name, char *position)
 {
     printf("Sending UDP message to client\n");
+    char dest[strlen(position)+strlen(name) + 1];
+    memset(&dest,0,sizeof(dest));
+    strcat(dest, name);
+    dest[strlen(name)] = ':';
+    strcat(dest,position);
     struct sockaddr_in servaddr;
     int fd = socket(AF_INET,SOCK_DGRAM,0);
     if(fd<0){
         perror("cannot open socket");
         return 1;
     }
-    
+    printf("%s\n", dest); 
     bzero(&servaddr,sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = inet_addr(HOSTNAME);
     servaddr.sin_port = htons(PORT);
-    if (sendto(fd, position, strlen(position)+1, 0, // +1 to include terminator
+    if (sendto(fd, dest , strlen(position)+strlen(name) + 1, 0, // +1 to include terminator
                (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0){
         perror("cannot send message");
         close(fd);
@@ -59,8 +64,8 @@ void parsing(char* buffer, ssize_t bytes_received)
     buffer += strlen(position1) + 1;
     char *position2 = strtok(buffer, DELIMITER);
     printf("x = %s y = %s\n", position1, position2);
-    send_Udp(position1);
-    send_Udp(position2);
+    send_Udp("mytest",position1);
+    send_Udp("test", position2);
 }
 
 void launch_socket()
