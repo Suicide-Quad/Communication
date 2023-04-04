@@ -17,8 +17,8 @@
 #define PORT 47269
 
 struct Data{
-    char name[20];
-    char value[20];
+    char x[20];
+    char y[20];
 };
 
 int send_Udp(char* name, char *position)
@@ -68,32 +68,24 @@ void parsing(char* buffer, ssize_t bytes_received)
     //char *position1 = strtok(buffer, DELIMITER);
     //buffer += strlen(position1) + 1;
     //char *position2 = strtok(buffer, DELIMITER);
-    struct Data datalist[10];
-    int datalen = 0;
+    
     i = 0;
 
     while(buffer != NULL && buffer[0] != '\0'){
-        char *name = strtok(buffer, DELIMITER);
-        buffer += strlen(name) + 1;
         char *value = strtok(buffer, DELIMITER);
         buffer += strlen(value) + 1;
 
-        printf("name = %s value = %s\n", name, value);
+        printf("value = %s, i = %d\n", value,i);
 
-        //datalist[i] = malloc(sizeof(struct Data));
-        strcpy(datalist[i].name, name);
-        strcpy(datalist[i].value, value);
+        if(i == 0){
+            send_Udp("x", value);
+        }
+        else if(i == 1){
+            send_Udp("y", value);
+        }
         i++;
-        datalen++;
     }
-    printf("datalen = %d\n", datalen);
     //printf("x = %s y = %s\n", position1, position2);
-
-    for (int i = 0; i < datalen; i++)
-    {
-        printf("name = %s value = %s\n", datalist[i].name, datalist[i].value);
-        send_Udp(datalist[i].name, datalist[i].value);
-    }
     //send_Udp("test", position2);
 }
 
