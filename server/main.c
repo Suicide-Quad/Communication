@@ -16,6 +16,11 @@
 #define HOSTNAME "127.0.0.1" 
 #define PORT 47269
 
+struct Data{
+    char name[20];
+    char value[20];
+};
+
 int send_Udp(char* name, char *position)
 {
     printf("Sending UDP message to client\n");
@@ -60,12 +65,36 @@ void parsing(char* buffer, ssize_t bytes_received)
     buffer[i] = '\0';
     buffer = buffer + i + 1;
     printf("Received message from client: %s\n", buffer);
-    char *position1 = strtok(buffer, DELIMITER);
-    buffer += strlen(position1) + 1;
-    char *position2 = strtok(buffer, DELIMITER);
-    printf("x = %s y = %s\n", position1, position2);
-    send_Udp("mytest",position1);
-    send_Udp("test", position2);
+    //char *position1 = strtok(buffer, DELIMITER);
+    //buffer += strlen(position1) + 1;
+    //char *position2 = strtok(buffer, DELIMITER);
+    struct Data datalist[10];
+    int datalen = 0;
+    i = 0;
+
+    while(buffer != NULL && buffer[0] != '\0'){
+        char *name = strtok(buffer, DELIMITER);
+        buffer += strlen(name) + 1;
+        char *value = strtok(buffer, DELIMITER);
+        buffer += strlen(value) + 1;
+
+        printf("name = %s value = %s\n", name, value);
+
+        //datalist[i] = malloc(sizeof(struct Data));
+        strcpy(datalist[i].name, name);
+        strcpy(datalist[i].value, value);
+        i++;
+        datalen++;
+    }
+    printf("datalen = %d\n", datalen);
+    //printf("x = %s y = %s\n", position1, position2);
+
+    for (int i = 0; i < datalen; i++)
+    {
+        printf("name = %s value = %s\n", datalist[i].name, datalist[i].value);
+        send_Udp(datalist[i].name, datalist[i].value);
+    }
+    //send_Udp("test", position2);
 }
 
 void launch_socket()
