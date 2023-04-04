@@ -18,7 +18,7 @@
 
 int send_Udp(char* name, char *position)
 {
-    printf("Sending UDP message to client\n");
+    //printf("Sending UDP message to client\n");
     char dest[strlen(position)+strlen(name) + 1];
     memset(&dest,0,sizeof(dest));
     strcat(dest, name);
@@ -30,7 +30,6 @@ int send_Udp(char* name, char *position)
         perror("cannot open socket");
         return 1;
     }
-    printf("%s\n", dest); 
     bzero(&servaddr,sizeof(servaddr));
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = inet_addr(HOSTNAME);
@@ -48,18 +47,18 @@ int send_Udp(char* name, char *position)
 
 void parsing(char* buffer, ssize_t bytes_received)
 { 
-    printf("Parsing message from client\n");
+    /*printf("Parsing message from client\n");
     printf("Buffer in parsing : %s\n",buffer);
-
+    */
     buffer[bytes_received] = '\0';
 
     int i = 0;
-    while(buffer[i] != 'n'){
+    while(buffer[i] != '\n'){
         i++;
     }
     buffer[i] = '\0';
     buffer = buffer + i + 1;
-    printf("Received message from client: %s\n", buffer);
+    //printf("Received message from client: %s\n", buffer);
     char *position1 = strtok(buffer, DELIMITER);
     buffer += strlen(position1) + 1;
     char *position2 = strtok(buffer, DELIMITER);
@@ -132,8 +131,9 @@ void launch_socket()
         if (bytes_received == -1) {
             err(EXIT_FAILURE, "Failed to receive message from client");
         }
-        printf("Received %zd bytes from client\n", bytes_received);
+        /*printf("Received %zd bytes from client\n", bytes_received);
         printf("buffer = %s\n", buffer);
+        */
         parsing(buffer, bytes_received);
         close(client_socket);
     }
