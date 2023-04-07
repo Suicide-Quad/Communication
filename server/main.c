@@ -12,17 +12,20 @@
 #define SERVER_PORT "2048" // port utilisé pour la connexion
 #define BACKLOG 10          // nombre maximal de connexions en attente
 #define DELIMITER ":"
+#define DELIMITER_END ";"
 
 #define HOSTNAME "127.0.0.1" 
 #define PORT 47269
 
+/*
 int send_Udp(char* name, char *position)
 {
     //printf("Sending UDP message to client\n");
-    char dest[strlen(position)+strlen(name) + 1];
+    char dest[strlen(position)+strlen(name) + 2];
     memset(&dest,0,sizeof(dest));
     strcat(dest, name);
     dest[strlen(name)] = ':';
+    strcat(dest, "1");
     strcat(dest,position);
     struct sockaddr_in servaddr;
     int fd = socket(AF_INET,SOCK_DGRAM,0);
@@ -34,7 +37,7 @@ int send_Udp(char* name, char *position)
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = inet_addr(HOSTNAME);
     servaddr.sin_port = htons(PORT);
-    if (sendto(fd, dest , strlen(position)+strlen(name) + 1, 0, // +1 to include terminator
+    if (sendto(fd, dest , strlen(dest) + 1, 0, // +1 to include terminator
                (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0){
         perror("cannot send message");
         close(fd);
@@ -42,6 +45,32 @@ int send_Udp(char* name, char *position)
     }
     close(fd);
     //close(socket_desc);
+    return 0;
+}
+*/
+
+int send_Udp(char* request)
+{
+    char dest[strlen(request) + 1];
+    memset(&dest,0,sizeof(dest));
+    strcat(dest, request);
+    struct sockaddr_in servaddr;
+    int fd = socket(AF_INET,SOCK_DGRAM,0);
+    if(fd<0){
+        perror("cannot open socket");
+        return 1;
+    }
+    bzero(&servaddr,sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = inet_addr(HOSTNAME);
+    servaddr.sin_port = htons(PORT);
+    if (sendto(fd, dest , strlen(dest) + 1, 0, // +1 to include terminator
+               (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0){
+        perror("cannot send message");
+        close(fd);
+        return 1;
+    }
+    close(fd);
     return 0;
 }
 
@@ -59,12 +88,9 @@ void parsing(char* buffer, ssize_t bytes_received)
     buffer[i] = '\0';
     buffer = buffer + i + 1;
     //printf("Received message from client: %s\n", buffer);
-    char *position1 = strtok(buffer, DELIMITER);
-    buffer += strlen(position1) + 1;
-    char *position2 = strtok(buffer, DELIMITER);
-    printf("x = %s y = %s\n", position1, position2);
-    send_Udp("mytest",position1);
-    send_Udp("test", position2);
+    char *request = strtok(buffer, DELIMITER_END);
+    printf("%s\n", request);
+    send_Udp(request);
 }
 
 void launch_socket()
