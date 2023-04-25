@@ -1,2 +1,5 @@
 keep.txt
 main
+.vscode/
+build/
+
