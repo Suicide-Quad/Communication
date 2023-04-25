@@ -1,14 +1,14 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
+#include "secret.h"
+#include "client.ino"
 
 #define LED_BUILTIN 2
 #define BUFFERSIZE 128 
-#define SSID "vym"
-#define PASSWORD "rozavel29"
 
 //Your Domain name with URL path or IP address with path
-String serverName = "http://192.168.141.3:2048/";
+String serverName = "http://192.168.239.3:2048/";
 
 String test = "23.4:234";
 
@@ -31,14 +31,6 @@ void setup() {
   Serial.print("Connected to WiFi network with IP Address: ");
   Serial.println(WiFi.localIP());
   digitalWrite(LED_BUILTIN, LOW);
-}
-
-String checksum(String buffer)
-{
-  uint8_t result = 0;
-  for(uint8_t i = 0; i < buffer.length(); i++)
-    result += buffer[i];
-  return String(result % 256);
 }
 
 void sendRequest(String buffer)
@@ -67,6 +59,7 @@ void sendRequest(String buffer)
     }
 }
 
+
 void loop() {
   // Send an HTTP POST request depending on timerDelay
     //Check WiFi connection status
@@ -74,7 +67,8 @@ void loop() {
   String request = Serial.readStringUntil(';');
   String sum = Serial.readStringUntil('&');
   sum.replace(';',' ');
-
+  Serial.println(request);
+  Serial.println(sum);
   if (request.length() > 1 && sum == checksum(request))
   {
     sendRequest(request);
