@@ -2,4 +2,4 @@ keep.txt
 main
 .vscode/
 build/
-
+.cache/
