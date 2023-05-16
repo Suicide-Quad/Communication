@@ -1,8 +1,8 @@
 CC = g++
 CFLAGS = -Wall
 EXEC_NAME = test 
-INCLUDES = -I/usr/include/opencv4/
-LIBS =
+CFLAGS = `pkg-config --cflags opencv4 gtk+-2.0` -D WITH_GTK=ON
+LIBS = `pkg-config --libs opencv4 gtk+-2.0` -D WITH_GTK=ON
 OBJ_FILES = main.o 
 INSTALL_DIR = /usr/bin
 
