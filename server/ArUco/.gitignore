@@ -1,3 +1,7 @@
 *.o
-test
+detect
+generate
+calibrate
 **/.cache
+camera_calib.yaml
+images/*

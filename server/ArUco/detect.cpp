@@ -8,18 +8,18 @@ using namespace cv;
 namespace {
 const char* about = "Basic marker detection";
 const char* keys  =
-        "{d        |       | dictionary: DICT_4X4_50=0, DICT_4X4_100=1, DICT_4X4_250=2,"
+        "{d        | 16                | dictionary: DICT_4X4_50=0, DICT_4X4_100=1, DICT_4X4_250=2,"
         "DICT_4X4_1000=3, DICT_5X5_50=4, DICT_5X5_100=5, DICT_5X5_250=6, DICT_5X5_1000=7, "
         "DICT_6X6_50=8, DICT_6X6_100=9, DICT_6X6_250=10, DICT_6X6_1000=11, DICT_7X7_50=12,"
         "DICT_7X7_100=13, DICT_7X7_250=14, DICT_7X7_1000=15, DICT_ARUCO_ORIGINAL = 16,"
         "DICT_APRILTAG_16h5=17, DICT_APRILTAG_25h9=18, DICT_APRILTAG_36h10=19, DICT_APRILTAG_36h11=20}"
-        "{v        |       | Input from video file, if ommited, input comes from camera }"
-        "{ci       | 0     | Camera id if input doesnt come from video (-v) }"
-        "{c        |       | Camera intrinsic parameters. Needed for camera pose }"
-        "{l        | 0.1   | Marker side lenght (in meters). Needed for correct scale in camera pose }"
-        "{dp       |       | File of marker detector parameters }"
-        "{r        |       | show rejected candidates too }"
-        "{refine   |       | Corner refinement: CORNER_REFINE_NONE=0, CORNER_REFINE_SUBPIX=1,"
+        "{v        |                   | Input from video file, if ommited, input comes from camera }"
+        "{ci       | 0                 | Camera id if input doesnt come from video (-v) }"
+        "{c        | camera_calib.yaml | Camera intrinsic parameters. Needed for camera pose }"
+        "{l        | 0.1               | Marker side lenght (in meters). Needed for correct scale in camera pose }"
+        "{dp       |                   | File of marker detector parameters }"
+        "{r        |                   | show rejected candidates too }"
+        "{refine   |                   | Corner refinement: CORNER_REFINE_NONE=0, CORNER_REFINE_SUBPIX=1,"
         "CORNER_REFINE_CONTOUR=2, CORNER_REFINE_APRILTAG=3}";
 }
 
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
     CommandLineParser parser(argc, argv, keys);
     parser.about(about);
 
-    if(argc < 2) {
+    if(argc < 1) {
         parser.printMessage();
         return 0;
     }
@@ -135,51 +135,47 @@ int main(int argc, char *argv[]) {
     int totalIterations = 0;
 
     while(inputVideo.grab()) {
-        cout << "Debug1" << std::endl;
         Mat image, imageCopy;
         inputVideo.retrieve(image);
-        cout << "Debug2" << std::endl;
         double tick = (double)getTickCount();
 
         vector< int > ids;
         vector< vector< Point2f > > corners, rejected;
         vector< Vec3d > rvecs, tvecs;
-        cout << "Debug4" << std::endl;
         // detect markers and estimate pose
         aruco::detectMarkers(image, dictionary, corners, ids, detectorParams, rejected);
         if(estimatePose && ids.size() > 0)
             aruco::estimatePoseSingleMarkers(corners, markerLength, camMatrix, distCoeffs, rvecs,
                                              tvecs);
-        cout << "Debug5" << std::endl;
         double currentTime = ((double)getTickCount() - tick) / getTickFrequency();
         totalTime += currentTime;
         totalIterations++;
-        if(totalIterations % 30 == 0) {
-            cout << "Detection Time = " << currentTime * 1000 << " ms "
-                 << "(Mean = " << 1000 * totalTime / double(totalIterations) << " ms)" << endl;
-        }
+        // if(totalIterations % 30 == 0) {
+        //     cout << "Detection Time = " << currentTime * 1000 << " ms "
+        //          << "(Mean = " << 1000 * totalTime / double(totalIterations) << " ms)" << endl;
+        // }
 
         // draw results
         image.copyTo(imageCopy);
+        // cout << "Detected markers : " << ids.size() << std::endl;
         if(ids.size() > 0) {
             aruco::drawDetectedMarkers(imageCopy, corners, ids);
-
-            if(estimatePose) {
-                for(unsigned int i = 0; i < ids.size(); i++)
+            for(unsigned int i = 0; i < ids.size(); i++){
+                // cout << "ID: " << ids[i] << endl;
+                if(estimatePose) {
                     drawFrameAxes(imageCopy, camMatrix, distCoeffs, rvecs[i], tvecs[i],
                                     markerLength * 0.5f);
+                }
             }
         }
-        cout << "Debug6" << std::endl;
 
 
+        // cout << "Rejected markers : " << rejected.size() << std::endl;
         if(showRejected && rejected.size() > 0)
             aruco::drawDetectedMarkers(imageCopy, rejected, noArray(), Scalar(100, 0, 255));
-        cout << "Debug7" << std::endl;
         imshow("out", imageCopy);
-        // char key = (char)waitKey(waitTime);
-        // if(key == 27) break;
-        cout << "Debug8" << std::endl;
+        char key = (char)waitKey(waitTime);
+        if(key == 27) break;
     }
 
     return 0;
