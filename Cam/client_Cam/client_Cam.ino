@@ -9,7 +9,10 @@
 //Wifi
 #include <WiFi.h>
 
-#include<SPI.h>
+#include <SPI.h>
+
+#include <string.h>
+#include <math.h>
 
 // MicroSD Libraries
 #include "FS.h"
@@ -27,10 +30,10 @@
 
 /*___Struct and Enum___*/
 
-int SizeTypeFrame [7] = {-1,8,24,16,32,64,131072};
+int SizeTypeFrame [7] = {-1,8,24,128,32,64,131072};
 enum TypeFrame
 {
-	NONE = 7,
+	NONE = -1,
 	ASK_POSITION = 6,
 	ACK = 1,
 	RESPONSE_POSITION = 2,
@@ -71,7 +74,13 @@ const char* password = "012345678";
 const char* host = "192.168.43.158";
 const int port = 8080;
 
+WiFiClient client;
+
+
+
 SPIClass spi;
+
+
 
 int getSizeTypeFrame (enum TypeFrame type)
 {
@@ -91,7 +100,9 @@ uint8_t computeCheckSum(int size, uint8_t* data)
 	return sum % 256;
 }
 
-void configESPCamera() {
+void configESPCamera() 
+{
+  Serial.print("Initializing the camera module...");
   // Configure Camera parameters
 
   // Object to store the camera configuration parameters
@@ -119,11 +130,13 @@ void configESPCamera() {
   config.pixel_format = PIXFORMAT_JPEG; // Choices are YUV422, GRAYSCALE, RGB565, JPEG
 
   // Select lower framesize if the camera doesn't support PSRAM
-  if (psramFound()) {
+  if (psramFound()) 
+  {
     config.frame_size = FRAMESIZE_SVGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
     config.jpeg_quality = 10; //10-63 lower number means higher quality
     config.fb_count = 2;
-  } else {
+  } else 
+  {
     config.frame_size = FRAMESIZE_SVGA;
     config.jpeg_quality = 12;
     config.fb_count = 1;
@@ -131,7 +144,8 @@ void configESPCamera() {
 
   // Initialize the Camera
   esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
+  if (err != ESP_OK) 
+  {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
   }
@@ -184,37 +198,50 @@ void configESPCamera() {
   // COLOR BAR PATTERN (0 = Disable , 1 = Enable)
   s->set_colorbar(s, 0);
 
+  Serial.println("Camera OK!");
 }
 
-void initWifi(){
-  // Connect to Wi-Fi
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting to ");
-  Serial.print(ssid);
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print(".");
-  }
-  Serial.println("Wifi OK");
-  
-  // Print ESP32 Local IP Address
-  //Serial.print("IP Address: http://");
-  //Serial.println(WiFi.localIP());
-}
 
-void initMicroSDCard() {
+void initMicroSDCard() 
+{
   // Start the MicroSD card
+  Serial.print("Initializing the MicroSD card module... ");
 
-  Serial.println("Mounting MicroSD Card");
-  if (!SD_MMC.begin()) {
+  if (!SD_MMC.begin()) 
+  {
     Serial.println("MicroSD Card Mount Failed");
     return;
   }
   uint8_t cardType = SD_MMC.cardType();
-  if (cardType == CARD_NONE) {
+  if (cardType == CARD_NONE) 
+  {
     Serial.println("No MicroSD Card found");
     return;
   }
+  Serial.println("Mounting MicroSD Card");
+}
 
+
+void initWifi()
+{
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to ");
+  Serial.print(ssid);
+  while (WiFi.status() != WL_CONNECTED) 
+  {
+    delay(100);
+    Serial.print(".");
+  }
+  Serial.println("Wifi OK");
+
+  Serial.print("Conneting to server ");
+  while(!client.connect(host, port))
+  {
+    delay(1000);
+    Serial.print(".");
+  }
+  Serial.println("Connection OK");
 }
 
 void setup() {
@@ -227,67 +254,63 @@ void setup() {
 
   spi=SPIClass(VSPI);
 
-  // Initialize the camera
-  Serial.print("Initializing the camera module...");
+  Serial.println("");
+  Serial.println("____Setup____");
+  // Initialize the camera MicroSd wifi and connection to Server
   configESPCamera();
-  Serial.println("Camera OK!");
-
-  // Initialize the MicroSD
-  Serial.print("Initializing the MicroSD card module... ");
   initMicroSDCard();
   initWifi();
+  Serial.println("");
 }
 
 
-void takeNewPhoto(char* path) {
+void takeNewPhoto(char* path) 
+{
   // Take Picture with Camera
-
+  Serial.println("____Photo___");
   // Setup frame buffer
   camera_fb_t  * fb = esp_camera_fb_get();
 
-  if (!fb) {
+  if (!fb) 
+  {
     Serial.println("Camera capture failed");
+    Serial.println("");
     return;
   }
 
   // Save picture to microSD card
   fs::FS &fs = SD_MMC;
   File file = fs.open(path, FILE_WRITE);
-  if (!file) {
+  if (!file) 
+  {
     Serial.println("Failed to open file in write mode");
+    return;
   }
-  else {
+  else 
+  {
     file.write(fb->buf, fb->len); // payload (image), payload length
-
-    Serial.printf("Saved file to path: %s\n", path);
   }
   // Close the file
   file.close();
 
   // Return the frame buffer back to the driver for reuse
   esp_camera_fb_return(fb);
+  Serial.println("Photo taken");
+  Serial.println("");
 }
 
 void sendRequest(uint8_t* buffer, size_t size)
 {
-  if(WiFi.status()== WL_CONNECTED){
-      /*Serial.println("Send'");
-      Serial.print(buffer);
-      Serial.print("'");*/
-      WiFiClient client;
-
-      if (!client.connect(host, port)) {
-        Serial.println("connection failed");
-        return;
-      }
-      Serial.println("Connection start");
+  Serial.println("____Communication____");
+  if(WiFi.status()== WL_CONNECTED)
+  {
       Serial.println("Send to server : ");
       for (int i = 0; i < size; i++)
       {
         Serial.println(buffer[i], HEX);
       }
       
-      client.print((char*)buffer);
+      client.write((char*)buffer, size);
 
       delay(100);
       
@@ -297,68 +320,118 @@ void sendRequest(uint8_t* buffer, size_t size)
         char read = client.read();
         Serial.println(read, HEX);
       } 
-      Serial.println("Connection end");
-      Serial.println("");
-      client.print((char*)buffer);
-      client.stop();
     }
-    else {
+    else 
+    {
       Serial.println("WiFi Disconnected");
     }
+
+    Serial.println("");
 }
 
-void loop() {
-
-  //String trash = Serial.readStringUntil(START_REQUEST);
-  uint8_t typebuf [1];
-  //Serial.readBytes(typebuf, 1);
-  typebuf[0] = ASK_POSITION;
-  delay(500);
-
-  static int t = 1;
-
-
-  if (t)//typebuf[0] == ASK_POSITION) 
+void loop() 
+{
+  static int do_com = 1;
+  if (do_com)
   {
+    //Build request
+    //String trash = Serial.readStringUntil(START_REQUEST);
+    uint8_t typebuf [1];
+    //Serial.readBytes(typebuf, 1);
+    typebuf[0] = ASK_POSITION;                      //at del
     enum TypeFrame type = (TypeFrame)typebuf[0];
     uint8_t sizeType = getSizeTypeFrame(type);
     int sizeRequest = SIZE_REQUEST(sizeType);
-    sizeRequest = 5;
-    uint8_t request [sizeRequest+1];
+    /*uint8_t request [sizeRequest+1];
     request[0] = START_REQUEST;
-    request[1] = type;
+    request[1] = type;*/
 
+    Serial.print("Test:sizetype =");
+    Serial.println(sizeType);
 
-    //get image and save in SD Card
-    char* path = "/image.jpg";
-    delay(500);
-    takeNewPhoto(path);
-    takeNewPhoto(path);
-    takeNewPhoto(path);
-    takeNewPhoto(path);
+    Serial.print("Test:type =");
+    Serial.println(type);
 
-    
-    //put image in request and send
-    /*fs::FS &fs = SD_MMC;
-    File file = fs.open(path, FILE_READ);
-    
-    int cp = 2;
-    while(file.available())
+    Serial.print("Test:sizeRequest =");
+    Serial.println(sizeRequest);
+
+    if (!do_com)                       //at change and all if at do 
     {
-      request[cp] = file.read();
-      Serial.print(request[cp]);
-      cp ++;
-    } */
-    request[2] = 'H';
-    request[3] = 'W';
-    sizeType = 2*8;
-    uint8_t sum = computeCheckSum(sizeType/8, &request[2]);
-    request[sizeRequest-1] = sum;
-    request[sizeRequest] = 0;
-    sendRequest(request, sizeRequest);
-    //file.close();
+      //get image and save in SD Card
+      char* path = "/image.jpg";
+      delay(500);
+      takeNewPhoto(path);
+      takeNewPhoto(path);
+      takeNewPhoto(path);
+      takeNewPhoto(path);
 
-    //TODO receive from server response_Position and resend at robot
-    t = 0;
+      
+      //put image in request and send
+      /*fs::FS &fs = SD_MMC;
+      File file = fs.open(path, FILE_READ);
+      
+      int cp = 2;
+      while(file.available())
+      {
+        request[cp] = file.read();
+        Serial.print(request[cp]);
+        cp ++;
+      } */
+      for (int i = 2; i-2 < sizeType; i ++)
+      {
+        //request[i] = 'H';
+      }
+
+      //file.close();
+    }
+    else
+    {
+      //int
+      /*int v = -1222222222;
+      memcpy(&request[2],&v,4);*/
+
+      //float
+      /*
+      int floatprecision = 1000000;
+      float v = 122.122;
+      int vp = trunc(v);
+      int vn = trunc(v*floatprecision)-vp*floatprecision;
+      Serial.println(vn);
+      memcpy(&request[2],&vp,4);
+      memcpy(&request[6],&vn,4);*/
+
+      //debug_pos
+      /*
+      int floatprecision = 1000000;
+      float vx = 122.122;
+      int vxp = trunc(vx);
+      int vxn = trunc(vx*floatprecision)-vxp*floatprecision;
+      memcpy(&request[2],&vxp,4);
+      memcpy(&request[6],&vxn,4);
+      float vy = 123.123;
+      int vyp = trunc(vy);
+      int vyn = trunc(vy*floatprecision)-vyp*floatprecision;
+      memcpy(&request[10],&vyp,4);
+      memcpy(&request[14],&vyn,4);*/
+
+      //ask_pos
+      sizeType = 131072;
+      client.write((char*)0xFE,1);
+      client.write("6",1);
+      for (int i = 2; i < sizeType/8; i++)
+      {
+        //request[i] = 'e';
+        client.write("e",1);
+      }
+      client.write((char*)(('e'*sizeType/8)%255),1);
+      Serial.println("All e send");
+      sizeRequest = 3+sizeType/8;
+    }
+
+    //uint8_t sum = computeCheckSum(sizeType/8, &request[2]);
+    //request[sizeRequest-1] = sum;
+    //request[sizeRequest] = 0;
+    //sendRequest(request, sizeRequest);
+    do_com = 0;
   }
 }
