@@ -1,12 +1,3 @@
-/*
-  ESP32 CAM Camera with MicroSD storage
-  esp32cam-microsd.ino
-  Take picture when button pressed
-  Store image on MicroSD card
-
-  DroneBot Workshop 2022
-  https://dronebotworkshop.com
-*/
 // Include Required Libraries
 
 // Camera libraries
@@ -15,11 +6,52 @@
 #include "soc/rtc_cntl_reg.h"
 #include "driver/rtc_io.h"
 
+//Wifi
+#include <WiFi.h>
+#include <HTTPClient.h>
+
 // MicroSD Libraries
 #include "FS.h"
 #include "SD_MMC.h"
 
-#include "communication.h"
+
+#define START_REQUEST 0xFE
+#define SIZE_START 8
+
+#define SIZE_TYPEFRAME 8
+
+#define SIZE_CHECKSUM 8
+
+#define SIZE_REQUEST(data) (SIZE_START + SIZE_TYPEFRAME + (data) + SIZE_CHECKSUM )/8
+// TODO : Change the timeout
+#define TIME_OUT 1000
+
+#define FINISH 1
+
+#define NOT_FINISH 0
+
+#define FLOAT_PRECISION 100000
+
+/*___Struct and Enum___*/
+
+int SizeTypeFrame [6] = {131072,8,24,16,32,64};
+enum TypeFrame
+{
+	NONE = 6,
+	ASK_POSITION = 0,
+	ACK = 1,
+	RESPONSE_POSITION = 2,
+	DEBUG_POSITION = 3,
+	DEBUG_INT = 4,
+	DEBUG_FLOAT = 5,
+};
+
+typedef struct PositionCommand
+{
+	uint8_t x;
+	uint8_t y;
+}positionCommand;
+
 
 // Pin definitions for CAMERA_MODEL_AI_THINKER
 #define PWDN_GPIO_NUM     32
@@ -43,6 +75,23 @@
 const char* ssid = "Redmi Note 9 Pro";
 const char* password = "012345678";
 
+int getSizeTypeFrame (enum TypeFrame type)
+{
+	if (type == NONE)
+		return 0;
+	return SizeTypeFrame[type];
+}
+
+// TODO : Merge with utils 
+uint8_t computeCheckSum(int size, uint8_t* data)
+{
+	uint8_t sum = 0;
+	for (int i = 0; i < size ; i ++)
+	{
+		sum += data[i];
+	}
+	return sum % 256;
+}
 
 void configESPCamera() {
   // Configure Camera parameters
@@ -140,7 +189,6 @@ void configESPCamera() {
 }
 
 void initWifi(){
-
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
@@ -209,6 +257,7 @@ void takeNewPhoto(char* path) {
   }
   else {
     file.write(fb->buf, fb->len); // payload (image), payload length
+
     Serial.printf("Saved file to path: %s\n", path);
   }
   // Close the file
@@ -246,37 +295,36 @@ void sendRequest(String buffer)
 
 void loop() {
   String trash = Serial.readStringUntil(START_REQUEST);
-  uint8_t type [1];
-  Serial.readBytes(type, 1);
+  uint8_t typebuf [1];
+  Serial.readBytes(typebuf, 1);
 
 
-  if (type[1] == ASK_POSITION)
+  if (typebuf[1] == ASK_POSITION) 
   {
-    uint8_t sizeType = getSizeTypeFrame(type[0]);
+    enum TypeFrame type = (TypeFrame)typebuf[0];
+    uint8_t sizeType = getSizeTypeFrame(type);
     int sizeRequest = SIZE_REQUEST(sizeType);;
-    uint8_t request [sizeRequest]
+    uint8_t request [sizeRequest];
     request[0] = START_REQUEST;
-    request[1] = type[0]
+    request[1] = type;
 
-    char* path = "/image.jpg";
-    // Path where new picture will be saved in SD Card
-    //String path = "/image" + String(pictureCount) + ".jpg";
-    //Serial.printf("Picture file name: %s\n", path.c_str());
 
     //get image and save in SD Card
+    char* path = "/image.jpg";
     delay(500);
     takeNewPhoto(path);
     takeNewPhoto(path);
     takeNewPhoto(path);
     takeNewPhoto(path);
 
+    
     //put image in request and send
     fs::FS &fs = SD_MMC;
     File file = fs.open(path, FILE_READ);
     file.read(&request[2],sizeType);
     uint8_t sum = computeCheckSum(sizeType/8, &request[2]);
-    request[sizeRequest-1] = sum
-    sendRequest(String(request));
+    request[sizeRequest-1] = sum;
+    sendRequest(String((char*)request));
 
     //TODO receive from server response_Position and resend at robot
   }
