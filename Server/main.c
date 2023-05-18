@@ -1,53 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <err.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include "communication.h"
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#define PORT_TCP 8080
+#define SA struct sockaddr
 
-#define BUFFER_SIZE 512
+#define BUFFER_SIZE 0x14 
 #define SERVER_PORT "2048" // port utilisé pour la connexion
 #define BACKLOG 10          // nombre maximal de connexions en attente
 #define DELIMITER ":"
 #define DELIMITER_END ";"
 
 #define HOSTNAME "127.0.0.1" 
-#define PORT 47269
-
-/*
-int send_Udp(char* name, char *position)
-{
-    //printf("Sending UDP message to client\n");
-    char dest[strlen(position)+strlen(name) + 2];
-    memset(&dest,0,sizeof(dest));
-    strcat(dest, name);
-    dest[strlen(name)] = ':';
-    strcat(dest, "1");
-    strcat(dest,position);
-    struct sockaddr_in servaddr;
-    int fd = socket(AF_INET,SOCK_DGRAM,0);
-    if(fd<0){
-        perror("cannot open socket");
-        return 1;
-    }
-    bzero(&servaddr,sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = inet_addr(HOSTNAME);
-    servaddr.sin_port = htons(PORT);
-    if (sendto(fd, dest , strlen(dest) + 1, 0, // +1 to include terminator
-               (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0){
-        perror("cannot send message");
-        close(fd);
-        return 1;
-    }
-    close(fd);
-    //close(socket_desc);
-    return 0;
-}
-*/
+#define PORT 42769 // port teleplot 
 
 int send_Udp(char* request)
 {
@@ -74,99 +47,81 @@ int send_Udp(char* request)
     return 0;
 }
 
-void parsing(char* buffer, ssize_t bytes_received)
-{ 
-    /*printf("Parsing message from client\n");
-    printf("Buffer in parsing : %s\n",buffer);
-    */
-    buffer[bytes_received] = '\0';
-
-    int i = 0;
-    while(buffer[i] != '\n'){
-        i++;
-    }
-    buffer[i] = '\0';
-    buffer = buffer + i + 1;
-    //printf("Received message from client: %s\n", buffer);
-    char *request = strtok(buffer, DELIMITER_END);
-    printf("%s\n", request);
-    send_Udp(request);
-}
-
-void launch_socket()
+void func(int connfd)
 {
-    printf("Launching socket\n");
-    struct addrinfo hints, *server_info, *p;
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;
-
-    int status;
-    if ((status = getaddrinfo(NULL, SERVER_PORT, &hints, &server_info)) != 0) {
-        errx(EXIT_FAILURE, "%s", gai_strerror(status));
-    }
-
-    int server_socket;
-    for (p = server_info; p != NULL; p = p->ai_next) {
-        if ((server_socket = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-            continue;
+    char buff[BUFFER_SIZE];
+    // infinite loop for chat
+    for (;;) {
+        bzero(buff, BUFFER_SIZE);
+   
+        // read the message from client and copy it in buffer
+        read(connfd, buff, sizeof(buff));
+        if (buff[0] != 0)
+        {
+        // print buffer which contains the client contents
+            printf("From client\n");
+            for(int i = 0; buff[i] != 0; i++)
+            {
+                printf("%.6d: %hhx\n", i, buff[i]);
+            } 
+            write(connfd, buff, sizeof(buff));
+            bzero(buff, BUFFER_SIZE);
         }
-
-        int yes = 1;
-        if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-            err(EXIT_FAILURE, "Failed to set socket options");
-        }
-
-        if (bind(server_socket, p->ai_addr, p->ai_addrlen) == -1) {
-            close(server_socket);
-            continue;
-        }
-
-        break;
     }
-
-    if (p == NULL) {
-        errx(EXIT_FAILURE, "Failed to bind server socket");
-    }
-
-    freeaddrinfo(server_info);
-
-    if (listen(server_socket, BACKLOG) == -1) {
-        err(EXIT_FAILURE, "Failed to listen for connections");
-    }
-
-    printf("Server waiting for connections on port %s...\n", SERVER_PORT);
-
-    struct sockaddr_storage client_addr;
-    socklen_t addr_size = sizeof client_addr;
-
-    int client_socket;
-    char buffer[256];
-    ssize_t bytes_received;
-
-    while (1) 
-    {
-        client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &addr_size);
-        if (client_socket == -1) {
-            err(EXIT_FAILURE, "Failed to accept connection");
-        }
-
-        bytes_received = recv(client_socket, buffer, sizeof buffer, 0);
-        if (bytes_received == -1) {
-            err(EXIT_FAILURE, "Failed to receive message from client");
-        }
-        /*printf("Received %zd bytes from client\n", bytes_received);
-        printf("buffer = %s\n", buffer);
-        */
-        parsing(buffer, bytes_received);
-        close(client_socket);
-    }
-    close(server_socket);
 }
 
-int main(void){
 
-    launch_socket();
+// Driver function
+int main()
+{
+    int sockfd, connfd;
+    socklen_t addrlen;
+    struct sockaddr_in servaddr, cli;
+
+    // socket create and verification
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        printf("socket creation failed...\n");
+        exit(0);
+    }
+    else
+        printf("Socket successfully created..\n");
+    bzero(&servaddr, sizeof(servaddr));
+
+    // assign IP, PORT
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(PORT_TCP);
+
+    // Binding newly created socket to given IP and verification
+    if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
+        printf("socket bind failed...\n");
+        exit(0);
+    }
+    else
+        printf("Socket successfully binded..\n");
+
+    // Now server is ready to listen and verification
+    if ((listen(sockfd, 5)) != 0) {
+        printf("Listen failed...\n");
+        exit(0);
+    }
+    else
+        printf("Server listening..\n");
+    addrlen = sizeof(cli);
+
+    // Accept the data packet from client and verification
+    connfd = accept(sockfd, (SA*)&cli, &addrlen);
+    if (connfd < 0) {
+        printf("server accept failed...\n");
+        exit(0);
+    }
+    else
+        printf("server accept the client...\n");
+
+    // Function for chatting between client and server
+    func(connfd);
+
+    // After chatting close the socket
+    close(sockfd);
 }

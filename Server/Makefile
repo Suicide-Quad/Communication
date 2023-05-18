@@ -1,14 +1,19 @@
-CC = gcc
-CFLAGS = `pkg-config --cflags glib-2.0 gtk+-3.0` -Wall -Wextra -pthread -g
-LDLIBS = `pkg-config --libs glib-2.0 gtk+-3.0` -lm
+CC=gcc
+CFLAGS=-Wall
+EXEC=main
+LDFLAGS=
 
-EXE = main
+all: $(EXEC)
 
-all: $(EXE)
+main: communication.o  main.o 
+	$(CC) -o $@ $^ $(LDFLAGS)
 
-$(foreach f, $(EXE), $(eval $(f):))
+main.o: main.c
+	$(CC) -c $^ $(CFLAGS)
 
-.PHONY: clean
+communication.o: communication.c 
+	$(CC) -c $^ $(CFLAGS)
 
 clean:
-	${RM} $(EXE)
+	rm -rf *.o
+	rm -rf $(EXEC)
