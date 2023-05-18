@@ -8,7 +8,8 @@
 
 //Wifi
 #include <WiFi.h>
-#include <HTTPClient.h>
+
+#include<SPI.h>
 
 // MicroSD Libraries
 #include "FS.h"
@@ -23,22 +24,14 @@
 #define SIZE_CHECKSUM 8
 
 #define SIZE_REQUEST(data) (SIZE_START + SIZE_TYPEFRAME + (data) + SIZE_CHECKSUM )/8
-// TODO : Change the timeout
-#define TIME_OUT 1000
-
-#define FINISH 1
-
-#define NOT_FINISH 0
-
-#define FLOAT_PRECISION 100000
 
 /*___Struct and Enum___*/
 
-int SizeTypeFrame [6] = {131072,8,24,16,32,64};
+int SizeTypeFrame [7] = {-1,8,24,16,32,64,131072};
 enum TypeFrame
 {
-	NONE = 6,
-	ASK_POSITION = 0,
+	NONE = 7,
+	ASK_POSITION = 6,
 	ACK = 1,
 	RESPONSE_POSITION = 2,
 	DEBUG_POSITION = 3,
@@ -74,6 +67,11 @@ typedef struct PositionCommand
 // Replace with your network credentials
 const char* ssid = "Redmi Note 9 Pro";
 const char* password = "012345678";
+
+const char* host = "192.168.43.158";
+const int port = 8080;
+
+SPIClass spi;
 
 int getSizeTypeFrame (enum TypeFrame type)
 {
@@ -191,15 +189,16 @@ void configESPCamera() {
 void initWifi(){
   // Connect to Wi-Fi
   WiFi.begin(ssid, password);
+  Serial.print("Connecting to ");
+  Serial.print(ssid);
   while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.print("Connecting to WiFi...");
+    Serial.print(".");
   }
   Serial.println("Wifi OK");
   
   // Print ESP32 Local IP Address
-  Serial.print("IP Address: http://");
-  Serial.println(WiFi.localIP());
+  //Serial.print("IP Address: http://");
+  //Serial.println(WiFi.localIP());
 }
 
 void initMicroSDCard() {
@@ -225,6 +224,8 @@ void setup() {
 
   // Start Serial Monitor
   Serial.begin(115200);
+
+  spi=SPIClass(VSPI);
 
   // Initialize the camera
   Serial.print("Initializing the camera module...");
@@ -267,26 +268,39 @@ void takeNewPhoto(char* path) {
   esp_camera_fb_return(fb);
 }
 
-void sendRequest(String buffer)
+void sendRequest(uint8_t* buffer, size_t size)
 {
-  if (buffer == "" || buffer == "\n")
-    return ;
   if(WiFi.status()== WL_CONNECTED){
       /*Serial.println("Send'");
       Serial.print(buffer);
       Serial.print("'");*/
       WiFiClient client;
-      HTTPClient http;
-     
 
-      String serverPath = "http://" + WiFi.localIP()  + '\n' + buffer + ';';   //TODO: why??
+      if (!client.connect(host, port)) {
+        Serial.println("connection failed");
+        return;
+      }
+      Serial.println("Connection start");
+      Serial.println("Send to server : ");
+      for (int i = 0; i < size; i++)
+      {
+        Serial.println(buffer[i], HEX);
+      }
       
-      // Your Domain name with URL path or IP address with path
-      http.begin(client, serverPath.c_str());
-      // Send HTTP GET request
-      int httpResponseCode = http.GET();
-      // Free resources
-      http.end();
+      client.print((char*)buffer);
+
+      delay(100);
+      
+      Serial.println("Receive from server : ");
+      while(client.available())
+      {
+        char read = client.read();
+        Serial.println(read, HEX);
+      } 
+      Serial.println("Connection end");
+      Serial.println("");
+      client.print((char*)buffer);
+      client.stop();
     }
     else {
       Serial.println("WiFi Disconnected");
@@ -294,17 +308,23 @@ void sendRequest(String buffer)
 }
 
 void loop() {
-  String trash = Serial.readStringUntil(START_REQUEST);
+
+  //String trash = Serial.readStringUntil(START_REQUEST);
   uint8_t typebuf [1];
-  Serial.readBytes(typebuf, 1);
+  //Serial.readBytes(typebuf, 1);
+  typebuf[0] = ASK_POSITION;
+  delay(500);
+
+  static int t = 1;
 
 
-  if (typebuf[1] == ASK_POSITION) 
+  if (t)//typebuf[0] == ASK_POSITION) 
   {
     enum TypeFrame type = (TypeFrame)typebuf[0];
     uint8_t sizeType = getSizeTypeFrame(type);
-    int sizeRequest = SIZE_REQUEST(sizeType);;
-    uint8_t request [sizeRequest];
+    int sizeRequest = SIZE_REQUEST(sizeType);
+    sizeRequest = 5;
+    uint8_t request [sizeRequest+1];
     request[0] = START_REQUEST;
     request[1] = type;
 
@@ -319,13 +339,26 @@ void loop() {
 
     
     //put image in request and send
-    fs::FS &fs = SD_MMC;
+    /*fs::FS &fs = SD_MMC;
     File file = fs.open(path, FILE_READ);
-    file.read(&request[2],sizeType);
+    
+    int cp = 2;
+    while(file.available())
+    {
+      request[cp] = file.read();
+      Serial.print(request[cp]);
+      cp ++;
+    } */
+    request[2] = 'H';
+    request[3] = 'W';
+    sizeType = 2*8;
     uint8_t sum = computeCheckSum(sizeType/8, &request[2]);
     request[sizeRequest-1] = sum;
-    sendRequest(String((char*)request));
+    request[sizeRequest] = 0;
+    sendRequest(request, sizeRequest);
+    //file.close();
 
     //TODO receive from server response_Position and resend at robot
+    t = 0;
   }
 }
