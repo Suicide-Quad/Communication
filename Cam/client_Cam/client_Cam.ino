@@ -338,14 +338,15 @@ void loop()
     //String trash = Serial.readStringUntil(START_REQUEST);
     uint8_t typebuf [1];
     //Serial.readBytes(typebuf, 1);
-    typebuf[0] = ASK_POSITION;                      //at del
+    typebuf[0] = DEBUG_FLOAT;                      //at del
     enum TypeFrame type = (TypeFrame)typebuf[0];
     uint8_t sizeType = getSizeTypeFrame(type);
     int sizeRequest = SIZE_REQUEST(sizeType);
-    /*uint8_t request [sizeRequest+1];
+    uint8_t request [sizeRequest+1];
     request[0] = START_REQUEST;
-    request[1] = type;*/
+    request[1] = type;
 
+    /*
     Serial.print("Test:sizetype =");
     Serial.println(sizeType);
 
@@ -353,7 +354,7 @@ void loop()
     Serial.println(type);
 
     Serial.print("Test:sizeRequest =");
-    Serial.println(sizeRequest);
+    Serial.println(sizeRequest);*/
 
     if (!do_com)                       //at change and all if at do 
     {
@@ -377,10 +378,6 @@ void loop()
         Serial.print(request[cp]);
         cp ++;
       } */
-      for (int i = 2; i-2 < sizeType; i ++)
-      {
-        //request[i] = 'H';
-      }
 
       //file.close();
     }
@@ -414,24 +411,11 @@ void loop()
       memcpy(&request[10],&vyp,4);
       memcpy(&request[14],&vyn,4);*/
 
-      //ask_pos
-      sizeType = 131072;
-      client.write((char*)0xFE,1);
-      client.write("6",1);
-      for (int i = 2; i < sizeType/8; i++)
-      {
-        //request[i] = 'e';
-        client.write("e",1);
-      }
-      client.write((char*)(('e'*sizeType/8)%255),1);
-      Serial.println("All e send");
-      sizeRequest = 3+sizeType/8;
     }
 
-    //uint8_t sum = computeCheckSum(sizeType/8, &request[2]);
-    //request[sizeRequest-1] = sum;
-    //request[sizeRequest] = 0;
-    //sendRequest(request, sizeRequest);
+    uint8_t sum = computeCheckSum(sizeType/8, &request[2]);
+    request[sizeRequest-1] = sum;
+    sendRequest(request, sizeRequest);
     do_com = 0;
   }
 }
