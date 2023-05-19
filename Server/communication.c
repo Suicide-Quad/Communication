@@ -42,7 +42,7 @@ void receiveType(uint8_t* data, enum TypeFrame type)
 {
 	double z = 0;
     char* udpRequest = malloc(sizeof(char) * 32);
-    char name;
+    uint8_t name;
 	switch (type)
 	{ 
         case DEBUG_POSITION:
@@ -61,9 +61,9 @@ void receiveType(uint8_t* data, enum TypeFrame type)
                 coo[i] += z / 1000000;
             }
             name = data[16];
-            printf("f = %f\n", coo[0]);
-            printf("f = %f\n", coo[1]);
-            printf("f = %c\n", name); 
+            printf("x = %f\n", coo[0]);
+            printf("y = %f\n", coo[1]);
+            printf("name = %c\n", name); 
             sprintf(udpRequest, "%c:%f:%f|xy",name, coo[0], coo[1]);
             sendUdp(udpRequest);
             break;
@@ -79,9 +79,9 @@ void receiveType(uint8_t* data, enum TypeFrame type)
             x += data[2] << 16;
             x += data[1] << 8;
             x += data[0]; 
-            name = data[5];
+            name = data[4];
             printf("x = %d\n", x);
-            printf("f = %c\n", name); 
+            printf("name = %c\n", name); 
             sprintf(udpRequest, "%c:%d",name, x);
             sendUdp(udpRequest);
             break;
@@ -98,8 +98,7 @@ void receiveType(uint8_t* data, enum TypeFrame type)
             y += z / 1000000;
             name = data[8];
             printf("f = %f\n", y);
-            printf("f = %f\n", z);
-            printf("f = %c\n", name); 
+            printf("name = %c\n", name); 
             sprintf(udpRequest, "%c:%f",name, y);
             sendUdp(udpRequest);
             break;

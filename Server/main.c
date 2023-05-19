@@ -36,7 +36,6 @@ void func(int connfd)
     for (;;) {
         bzero(buff, BUFFER_SIZE);
    
-        printf("Begin read\n");
         // read the message from client and copy it in buffer
         read(connfd, buff, sizeof(buff));
         if (buff[0] != 0)
