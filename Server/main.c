@@ -4,15 +4,13 @@
 #include <netdb.h>
 #include <err.h>
 #include <string.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include "communication.h"
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <signal.h>
 #include <sys/types.h>
 
-#define PORT_TCP 8080
+#define PORT_TCP 2048
 #define SA struct sockaddr
 
 #define BUFFER_SIZE 131072 
@@ -21,10 +19,6 @@
 #define DELIMITER ":"
 #define DELIMITER_END ";"
 
-#define HOSTNAME "127.0.0.1" 
-#define PORT 42769 // port teleplot 
-
-
 int connfd;
 
 void CatchSignal(int sig)
@@ -32,31 +26,6 @@ void CatchSignal(int sig)
     printf("Catch\n");
     close(connfd);
     exit(0);
-}
-
-int send_Udp(char* request)
-{
-    char dest[strlen(request) + 1];
-    memset(&dest,0,sizeof(dest));
-    strcat(dest, request);
-    struct sockaddr_in servaddr;
-    int fd = socket(AF_INET,SOCK_DGRAM,0);
-    if(fd<0){
-        perror("cannot open socket");
-        return 1;
-    }
-    bzero(&servaddr,sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = inet_addr(HOSTNAME);
-    servaddr.sin_port = htons(PORT);
-    if (sendto(fd, dest , strlen(dest) + 1, 0, // +1 to include terminator
-               (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0){
-        perror("cannot send message");
-        close(fd);
-        return 1;
-    }
-    close(fd);
-    return 0;
 }
 
 void func(int connfd)
