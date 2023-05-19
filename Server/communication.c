@@ -1,7 +1,7 @@
 #include "communication.h"
 #include <stdio.h>
 
-int SizeTypeFrame [6] = {131072,8,24,16,32,64};
+int SizeTypeFrame [7] = {0,8,24,128,32,64,131072};
 /*___GLOBAL-VAR___*/
 
 //ID of the ArUco
@@ -18,7 +18,7 @@ int getSizeTypeFrame (enum TypeFrame type)
 }
 
 // TODO : Merge with utils 
-uint8_t computeCheckSum(int size, char* data)
+uint8_t computeCheckSum(int size, uint8_t* data)
 {
 	uint8_t sum = 0;
 	for (int i = 0; i < size ; i ++)
@@ -28,65 +28,105 @@ uint8_t computeCheckSum(int size, char* data)
 	return sum % 256;
 }
 
-void receiveStartBlock(uint8_t* start, char buffer[], uint8_t* pointBuffer, int buff_size)
+void receiveStartBlock(uint8_t* start, uint8_t buffer[], uint8_t* pointBuffer)
 {
-	while (!*start && *pointBuffer < buff_size)
+	if ((uint8_t)buffer[*pointBuffer] == 254)
 	{
-		if ((enum TypeFrame)buffer[*pointBuffer] == START_REQUEST)
-		{
-			*start = 1;
-		}
-		(*pointBuffer) ++;
+		*start = 1;
 	}
+	(*pointBuffer) ++;
 }
 
-void receiveType(char* data, enum TypeFrame type)
+void receiveType(uint8_t* data, enum TypeFrame type)
 {
-	if (type == RESPONSE_POSITION)
-	{
-		IDArUco = data[0];
-		PositionArUco.x = data[1];
-		PositionArUco.y = data[2];
-	}
-	else if (type == ASK_POSITION)
-	{
+	double z = 0;
+	switch (type)
+	{ 
+	case DEBUG_POSITION:
+		double coo[2] = {0, 0};
+		for(int i = 0; i < 2; i++)
+		{
+			z = 0;
+			coo[i] = data[3 + i * 8] << 24 ;
+			coo[i] += data[2 + i * 8] << 16;
+			coo[i] += data[1 + i * 8] << 8;
+			coo[i] += data[0 + i * 8];
+			z = data[7 + i * 8] << 24 ;
+			z += data[6 + i * 8] << 16;
+			z += data[5 + i * 8] << 8;
+			z += data[4 + i * 8];
+			coo[i] += z / 1000000;
+		}
+		printf("f = %f\n", coo[0]);
+		printf("f = %f\n", coo[1]);
+		break;
+	case ASK_POSITION: 
 		printf("image\n");
+		FILE* fptr = fopen("file.test","w");
+		fwrite(&data, sizeof(char), getSizeTypeFrame(type) / 8, fptr);
+		fclose(fptr); 
+		break;
+	case DEBUG_INT: 
+		int x = 0;
+		x = data[3] << 24 ;
+		x += data[2] << 16;
+		x += data[1] << 8;
+		x += data[0]; 
+		printf("x = %d\n", x);
+	case DEBUG_FLOAT:
+		double y = 0;
+		y = data[3] << 24 ;
+		y += data[2] << 16;
+		y += data[1] << 8;
+		y += data[0];
+		z = data[7] << 24 ;
+		z += data[6] << 16;
+		z += data[5] << 8;
+		z += data[4];
+		y += z / 1000000;
+		printf("f = %f\n", y);
+		printf("f = %f\n", z);
+	default:
+		break;
 	}
-    // TODO : Add picture
 }
 
 //catch data and compute things to do
-void receiveData(enum TypeFrame type, uint8_t* pointBuffer, uint8_t* sizeReadBuffer, char* buffer, int buff_size)
+void receiveData(enum TypeFrame type, uint8_t* buffer)
 {
-	buffer += 2;
 	int size = getSizeTypeFrame(type);
 	size /= 8;
+	for(int i = 0; i < size; i++)
+	{
+		printf("%.6d : %hhx\n",i, buffer[i]);
+	} 
 	if (computeCheckSum(size, buffer) == *(buffer + size))
 	{
 		receiveType(buffer, type);
 	}
+	else 
+	{
+		printf("Checksum Invalid\n");
+	}
 
 }
 
-void receiveRequest(char buffer[], int buff_size)
-
+void receiveRequest(uint8_t buffer[])
 {
-	printf("%s",buffer);
-	static uint8_t start = 0;
-	static enum TypeFrame type = NONE;
-	static uint8_t sizeReadData = 0; //in bytes calculted in the start of data
-
-
+	uint8_t start = 0;
+	enum TypeFrame type = NONE;
 	uint8_t pointBuffer = 0;
-	receiveStartBlock(&start, buffer, &pointBuffer, buff_size);
-	if (type == NONE && pointBuffer < buff_size)
+	receiveStartBlock(&start, buffer, &pointBuffer);
+	type = buffer[pointBuffer];
+	printf("Type %d\n", type);
+	if (start)
 	{
-		type = buffer[pointBuffer];
-		pointBuffer ++;
+		buffer+=2;
+		receiveData(type, buffer);
 	}
-	if (pointBuffer < buff_size)
+	else 
 	{
-		receiveData(type, &pointBuffer, &sizeReadData, buffer, buff_size);
+		printf("No start\n");
 	}
 }
 

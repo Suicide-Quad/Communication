@@ -9,11 +9,13 @@
 #include "communication.h"
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <signal.h>
 #include <sys/types.h>
+
 #define PORT_TCP 8080
 #define SA struct sockaddr
 
-#define BUFFER_SIZE 0x14 
+#define BUFFER_SIZE 131072 
 #define SERVER_PORT "2048" // port utilisé pour la connexion
 #define BACKLOG 10          // nombre maximal de connexions en attente
 #define DELIMITER ":"
@@ -21,6 +23,16 @@
 
 #define HOSTNAME "127.0.0.1" 
 #define PORT 42769 // port teleplot 
+
+
+int connfd;
+
+void CatchSignal(int sig)
+{
+    printf("Catch\n");
+    close(connfd);
+    exit(0);
+}
 
 int send_Udp(char* request)
 {
@@ -49,22 +61,21 @@ int send_Udp(char* request)
 
 void func(int connfd)
 {
-    char buff[BUFFER_SIZE];
+    printf("Infinite Loop\n");
+    uint8_t buff[BUFFER_SIZE];
     // infinite loop for chat
     for (;;) {
         bzero(buff, BUFFER_SIZE);
    
+        printf("Begin read\n");
         // read the message from client and copy it in buffer
         read(connfd, buff, sizeof(buff));
         if (buff[0] != 0)
         {
         // print buffer which contains the client contents
-            printf("From client\n");
-            for(int i = 0; buff[i] != 0; i++)
-            {
-                printf("%.6d: %hhx\n", i, buff[i]);
-            } 
-            write(connfd, buff, sizeof(buff));
+
+            receiveRequest(buff);
+            //write(connfd, buff, sizeof(buff));
             bzero(buff, BUFFER_SIZE);
         }
     }
@@ -74,7 +85,8 @@ void func(int connfd)
 // Driver function
 int main()
 {
-    int sockfd, connfd;
+    signal(SIGINT, CatchSignal);
+    int sockfd;
     socklen_t addrlen;
     struct sockaddr_in servaddr, cli;
 

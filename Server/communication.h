@@ -27,8 +27,8 @@
 
 enum TypeFrame
 {
-	NONE = -1,
-	ASK_POSITION = 0,
+	NONE = 7,
+	ASK_POSITION = 6,
 	ACK = 1,
 	RESPONSE_POSITION = 2,
 	DEBUG_POSITION = 3,
@@ -47,8 +47,7 @@ typedef struct PositionCommand
 /*___FUNCTION___*/
 
 //receive request and manage all
-void receiveData(enum TypeFrame type, uint8_t* pointBuffer, uint8_t* sizeReadBuffer, char buffer[], int buff_size);
-void receiveRequest(char buffer[], int buff_size);
+void receiveRequest(uint8_t buffer[]);
 
 //get the ID of the sended image, 255 if not receive response, and 254 if is not found ArUco on image
 uint8_t getId();
