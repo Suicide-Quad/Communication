@@ -331,91 +331,31 @@ void sendRequest(uint8_t* buffer, size_t size)
 
 void loop() 
 {
-  static int do_com = 1;
-  if (do_com)
+  Serial.print("Wait request");
+  while(Serial.read() != START_REQUEST);
+  enum TypeFrame type = (TypeFrame)Serial.read();
+
+  if (type == ASK_POSITION)                      
   {
-    //Build request
-    //String trash = Serial.readStringUntil(START_REQUEST);
-    uint8_t typebuf [1];
-    //Serial.readBytes(typebuf, 1);
-    typebuf[0] = DEBUG_FLOAT;                      //at del
-    enum TypeFrame type = (TypeFrame)typebuf[0];
+    char* path = "/image.jpg";
+    delay(500);
+    takeNewPhoto(path);
+    takeNewPhoto(path);
+    takeNewPhoto(path);
+    takeNewPhoto(path);
+  }
+  else if (type != NONE)
+  {
     uint8_t sizeType = getSizeTypeFrame(type);
     int sizeRequest = SIZE_REQUEST(sizeType);
     uint8_t request [sizeRequest+1];
     request[0] = START_REQUEST;
     request[1] = type;
 
-    /*
-    Serial.print("Test:sizetype =");
-    Serial.println(sizeType);
-
-    Serial.print("Test:type =");
-    Serial.println(type);
-
-    Serial.print("Test:sizeRequest =");
-    Serial.println(sizeRequest);*/
-
-    if (!do_com)                       //at change and all if at do 
-    {
-      //get image and save in SD Card
-      char* path = "/image.jpg";
-      delay(500);
-      takeNewPhoto(path);
-      takeNewPhoto(path);
-      takeNewPhoto(path);
-      takeNewPhoto(path);
-
-      
-      //put image in request and send
-      /*fs::FS &fs = SD_MMC;
-      File file = fs.open(path, FILE_READ);
-      
-      int cp = 2;
-      while(file.available())
-      {
-        request[cp] = file.read();
-        Serial.print(request[cp]);
-        cp ++;
-      } */
-
-      //file.close();
-    }
-    else
-    {
-      //int
-      /*int v = -1222222222;
-      memcpy(&request[2],&v,4);*/
-
-      //float
-      /*
-      int floatprecision = 1000000;
-      float v = 122.122;
-      int vp = trunc(v);
-      int vn = trunc(v*floatprecision)-vp*floatprecision;
-      Serial.println(vn);
-      memcpy(&request[2],&vp,4);
-      memcpy(&request[6],&vn,4);*/
-
-      //debug_pos
-      /*
-      int floatprecision = 1000000;
-      float vx = 122.122;
-      int vxp = trunc(vx);
-      int vxn = trunc(vx*floatprecision)-vxp*floatprecision;
-      memcpy(&request[2],&vxp,4);
-      memcpy(&request[6],&vxn,4);
-      float vy = 123.123;
-      int vyp = trunc(vy);
-      int vyn = trunc(vy*floatprecision)-vyp*floatprecision;
-      memcpy(&request[10],&vyp,4);
-      memcpy(&request[14],&vyn,4);*/
-
-    }
+    Serial.readBytes(&request[2], sizeType/8);
 
     uint8_t sum = computeCheckSum(sizeType/8, &request[2]);
     request[sizeRequest-1] = sum;
     sendRequest(request, sizeRequest);
-    do_com = 0;
   }
 }
