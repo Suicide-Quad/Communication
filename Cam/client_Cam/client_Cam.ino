@@ -9,28 +9,33 @@
 //Wifi
 #include <WiFi.h>
 
-#include <SPI.h>
-
 #include <string.h>
 #include <math.h>
 
-// MicroSD Libraries
-#include "FS.h"
-#include "SD_MMC.h"
+
+const char* ssid = "Redmi Note 9 Pro";
+const char* password = "012345678";
+
+const char* host = "192.168.43.96";
+const int port = 2048;
+
+WiFiClient client;
 
 
 #define START_REQUEST 0xFE
+
 #define SIZE_START 8
 
 #define SIZE_TYPEFRAME 8
 
 #define SIZE_CHECKSUM 8
 
-#define SIZE_REQUEST(data) (SIZE_START + SIZE_TYPEFRAME + (data) + SIZE_CHECKSUM )/8
+#define SIZE_REQUEST(data) ((SIZE_START) + (SIZE_TYPEFRAME) + (data) + (SIZE_CHECKSUM))/8
+
 
 /*___Struct and Enum___*/
 
-int SizeTypeFrame [7] = {-1,8,24,128,32,64,131072};
+int SizeTypeFrame [7] = {-1,8,24,136,40,72,131072};
 enum TypeFrame
 {
 	NONE = -1,
@@ -41,13 +46,6 @@ enum TypeFrame
 	DEBUG_INT = 4,
 	DEBUG_FLOAT = 5,
 };
-
-typedef struct PositionCommand
-{
-	uint8_t x;
-	uint8_t y;
-}positionCommand;
-
 
 // Pin definitions for CAMERA_MODEL_AI_THINKER
 #define PWDN_GPIO_NUM     32
@@ -60,25 +58,12 @@ typedef struct PositionCommand
 #define Y7_GPIO_NUM       39
 #define Y6_GPIO_NUM       36
 #define Y5_GPIO_NUM       21
-#define Y4_GPIO_NUM       19
+#define Y4_GPIO_NUM       19       
 #define Y3_GPIO_NUM       18
 #define Y2_GPIO_NUM        5
 #define VSYNC_GPIO_NUM    25
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
-
-// Replace with your network credentials
-const char* ssid = "Redmi Note 9 Pro";
-const char* password = "012345678";
-
-const char* host = "192.168.43.158";
-const int port = 8080;
-
-WiFiClient client;
-
-
-
-SPIClass spi;
 
 
 
@@ -102,7 +87,7 @@ uint8_t computeCheckSum(int size, uint8_t* data)
 
 void configESPCamera() 
 {
-  Serial.print("Initializing the camera module...");
+  Serial.print("Initializing the camera module ");
   // Configure Camera parameters
 
   // Object to store the camera configuration parameters
@@ -144,10 +129,11 @@ void configESPCamera()
 
   // Initialize the Camera
   esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) 
+  while(err != ESP_OK)
   {
-    Serial.printf("Camera init failed with error 0x%x", err);
-    return;
+    delay(1000);
+    Serial.print(".");
+    err = esp_camera_init(&config);
   }
 
   // Camera quality adjustments
@@ -198,27 +184,7 @@ void configESPCamera()
   // COLOR BAR PATTERN (0 = Disable , 1 = Enable)
   s->set_colorbar(s, 0);
 
-  Serial.println("Camera OK!");
-}
-
-
-void initMicroSDCard() 
-{
-  // Start the MicroSD card
-  Serial.print("Initializing the MicroSD card module... ");
-
-  if (!SD_MMC.begin()) 
-  {
-    Serial.println("MicroSD Card Mount Failed");
-    return;
-  }
-  uint8_t cardType = SD_MMC.cardType();
-  if (cardType == CARD_NONE) 
-  {
-    Serial.println("No MicroSD Card found");
-    return;
-  }
-  Serial.println("Mounting MicroSD Card");
+  Serial.println(" Camera OK");
 }
 
 
@@ -228,12 +194,13 @@ void initWifi()
   WiFi.begin(ssid, password);
   Serial.print("Connecting to ");
   Serial.print(ssid);
+  Serial.print(" ");
   while (WiFi.status() != WL_CONNECTED) 
   {
-    delay(100);
+    delay(1000);
     Serial.print(".");
   }
-  Serial.println("Wifi OK");
+  Serial.println(" Wifi OK");
 
   Serial.print("Conneting to server ");
   while(!client.connect(host, port))
@@ -241,7 +208,7 @@ void initWifi()
     delay(1000);
     Serial.print(".");
   }
-  Serial.println("Connection OK");
+  Serial.println(" Connection OK");
 }
 
 void setup() {
@@ -252,19 +219,18 @@ void setup() {
   // Start Serial Monitor
   Serial.begin(115200);
 
-  spi=SPIClass(VSPI);
+  //spi=SPIClass(VSPI);
 
   Serial.println("");
   Serial.println("____Setup____");
-  // Initialize the camera MicroSd wifi and connection to Server
+  // Initialize the camera wifi and connection to Server
   configESPCamera();
-  initMicroSDCard();
   initWifi();
   Serial.println("");
 }
 
 
-void takeNewPhoto(char* path) 
+void takeNewPhoto(int send) 
 {
   // Take Picture with Camera
   Serial.println("____Photo___");
@@ -278,24 +244,36 @@ void takeNewPhoto(char* path)
     return;
   }
 
-  // Save picture to microSD card
-  fs::FS &fs = SD_MMC;
-  File file = fs.open(path, FILE_WRITE);
-  if (!file) 
+  if (send)
   {
-    Serial.println("Failed to open file in write mode");
-    return;
+    uint8_t request[7];
+    request[0] = START_REQUEST;
+    request[1] = ASK_POSITION;
+    Serial.print("Size send image : ");
+    Serial.println(fb->len);
+    memcpy(&request[2],&fb->len,4);
+    int sum = computeCheckSum(4,&request[2]);
+    request[6] = sum;
+    client.write(request, 7);
+    
+    int nbSend = 0;
+    int nbPackets = 0;
+    while (nbSend < fb-> len)
+    {
+      int atSendNow = (fb->len-nbSend < atSendNow ? fb->len-nbSend : 1460);
+      client.write(&fb->buf[nbSend],atSendNow);
+      nbSend += atSendNow;
+      nbPackets ++;
+    }
+    Serial.print("Image Send in ");
+    Serial.print(nbPackets);
+    Serial.println(" packets");
   }
-  else 
-  {
-    file.write(fb->buf, fb->len); // payload (image), payload length
-  }
-  // Close the file
-  file.close();
 
   // Return the frame buffer back to the driver for reuse
   esp_camera_fb_return(fb);
-  Serial.println("Photo taken");
+  if (!send)
+    Serial.println("Photo taken");
   Serial.println("");
 }
 
@@ -331,31 +309,38 @@ void sendRequest(uint8_t* buffer, size_t size)
 
 void loop() 
 {
-  Serial.print("Wait request");
-  while(Serial.read() != START_REQUEST);
-  enum TypeFrame type = (TypeFrame)Serial.read();
-
-  if (type == ASK_POSITION)                      
+  while(Serial.available()<=0);
+  
+  enum TypeFrame type = NONE;
+  
+  int read = Serial.read();
+  if (read == START_REQUEST)
   {
-    char* path = "/image.jpg";
-    delay(500);
-    takeNewPhoto(path);
-    takeNewPhoto(path);
-    takeNewPhoto(path);
-    takeNewPhoto(path);
+    type = (TypeFrame)Serial.read();
   }
-  else if (type != NONE)
+  if (type != NONE)
   {
-    uint8_t sizeType = getSizeTypeFrame(type);
-    int sizeRequest = SIZE_REQUEST(sizeType);
-    uint8_t request [sizeRequest+1];
-    request[0] = START_REQUEST;
-    request[1] = type;
+    if (type == ASK_POSITION)                      
+    {
+      delay(500);
+      takeNewPhoto(0);
+      takeNewPhoto(0);
+      takeNewPhoto(0);
+      takeNewPhoto(1);
+    }
+    else
+    {
+      uint8_t sizeType = getSizeTypeFrame(type);
+      int sizeRequest = SIZE_REQUEST(sizeType);
+      uint8_t request [sizeRequest];
+      request[0] = START_REQUEST;
+      request[1] = type;
 
-    Serial.readBytes(&request[2], sizeType/8);
+      Serial.readBytes(&request[2], sizeType/8);
 
-    uint8_t sum = computeCheckSum(sizeType/8, &request[2]);
-    request[sizeRequest-1] = sum;
-    sendRequest(request, sizeRequest);
+      uint8_t sum = computeCheckSum(sizeType/8, &request[2]);
+      request[sizeRequest-1] = sum;
+      sendRequest(request, sizeRequest);
+    }
   }
 }

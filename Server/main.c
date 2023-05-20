@@ -13,7 +13,7 @@
 #define PORT_TCP 2048
 #define SA struct sockaddr
 
-#define BUFFER_SIZE 131072 
+#define BUFFER_SIZE (262144/8)
 #define SERVER_PORT "2048" // port utilisé pour la connexion
 #define BACKLOG 10          // nombre maximal de connexions en attente
 #define DELIMITER ":"

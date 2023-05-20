@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include "udp.h" 
 
-int SizeTypeFrame [7] = {0,8,24,136,40,72,131072};
+int SizeTypeFrame [7] = {0,8,24,136,40,72,32};
 /*___GLOBAL-VAR___*/
 
 //ID of the ArUco
@@ -11,6 +11,11 @@ uint8_t IDArUco;
 
 //Local Position of ArUco (from the robot)
 struct PositionCommand PositionArUco;
+
+//for now if image was send
+int receivedImage = 0;
+int sizeImage = 0;
+FILE* fptr = NULL;
 
 int getSizeTypeFrame (enum TypeFrame type)
 {
@@ -67,11 +72,37 @@ void receiveType(uint8_t* data, enum TypeFrame type)
             sprintf(udpRequest, "%c:%f:%f|xy",name, coo[0], coo[1]);
             sendUdp(udpRequest);
             break;
-        case ASK_POSITION: 
-            printf("image\n");
-            FILE* fptr = fopen("file.test","w");
-            fwrite(&data, sizeof(char), getSizeTypeFrame(type) / 8, fptr);
-            fclose(fptr); 
+        case ASK_POSITION:
+			if (receivedImage)
+			{
+				char* path = "file.jpg";
+				if (fptr == NULL)
+				{
+					fptr = fopen(path,"w");
+				}
+				for(int i = 0; i < PACKET_MAX && sizeImage > 0; i ++)
+				{
+					fputc(data[i],fptr);
+					sizeImage --;
+				}
+				if (sizeImage <= 0)
+				{
+					receivedImage = 0;
+					sizeImage = 0;
+					printf("save image to %s\n",path);
+					fclose(fptr);
+					fptr = NULL;
+				}
+			}
+			else
+			{
+				receivedImage = 1;
+				sizeImage = data[3] << 24 ;
+				sizeImage += data[2] << 16;
+				sizeImage += data[1] << 8;
+				sizeImage += data[0];
+				printf("next send was image of size : %d\n",sizeImage);
+			}
             break;
         case DEBUG_INT: 
             int x = 0;
@@ -110,39 +141,52 @@ void receiveType(uint8_t* data, enum TypeFrame type)
 //catch data and compute things to do
 void receiveData(enum TypeFrame type, uint8_t* buffer)
 {
-	int size = getSizeTypeFrame(type);
-	size /= 8;
-	for(int i = 0; i < size; i++)
-	{
-		printf("%.6d : %hhx\n",i, buffer[i]);
-	} 
-	if (computeCheckSum(size, buffer) == *(buffer + size))
+	if (receivedImage)
 	{
 		receiveType(buffer, type);
 	}
-	else 
+	else
 	{
-		printf("Checksum Invalid\n");
+		int size = getSizeTypeFrame(type);
+		size /= 8;
+		for(int i = 0; i < size; i++)
+		{
+			printf("%.6d : %hhx\n",i, buffer[i]);
+		} 
+		if (computeCheckSum(size, buffer) == *(buffer + size))
+		{
+			receiveType(buffer, type);
+		}
+		else 
+		{
+			printf("Checksum Invalid\n");
+		}
 	}
-
 }
 
 void receiveRequest(uint8_t buffer[])
 {
-	uint8_t start = 0;
-	enum TypeFrame type = NONE;
-	uint8_t pointBuffer = 0;
-	receiveStartBlock(&start, buffer, &pointBuffer);
-	type = buffer[pointBuffer];
-	printf("Type %d\n", type);
-	if (start)
+	if (receivedImage)
 	{
-		buffer+=2;
-		receiveData(type, buffer);
+		receiveData(ASK_POSITION, buffer);
 	}
-	else 
+	else
 	{
-		printf("No start\n");
+		uint8_t start = 0;
+		enum TypeFrame type = NONE;
+		uint8_t pointBuffer = 0;
+		receiveStartBlock(&start, buffer, &pointBuffer);
+		type = buffer[pointBuffer];
+		printf("Type %d\n", type);
+		if (start)
+		{
+			buffer+= (receivedImage ? 0 : 2);
+			receiveData(type, buffer);
+		}
+		else 
+		{
+			printf("No start\n");
+		}
 	}
 }
 

@@ -23,6 +23,8 @@
 
 #define FLOAT_PRECISION 100000
 
+#define PACKET_MAX 1460
+
 /*___Struct and Enum___*/
 
 enum TypeFrame
