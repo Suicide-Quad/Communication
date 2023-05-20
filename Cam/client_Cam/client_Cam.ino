@@ -9,6 +9,10 @@
 //Wifi
 #include <WiFi.h>
 
+// MicroSD Libraries
+#include "FS.h"
+#include "SD_MMC.h"
+
 #include <string.h>
 #include <math.h>
 
@@ -187,6 +191,23 @@ void configESPCamera()
   Serial.println(" Camera OK");
 }
 
+void initMicroSDCard() 
+{
+  // Start the MicroSD card
+  Serial.print("Initializing the MicroSD card module ");
+
+  while (!SD_MMC.begin()) 
+  {
+    Serial.print(".");
+  }
+  uint8_t cardType = SD_MMC.cardType();
+  if (cardType == CARD_NONE) 
+  {
+    Serial.println(" No MicroSD Card found");
+    return;
+  }
+  Serial.println(" MicroSD Card OK");
+}
 
 void initWifi()
 {
@@ -225,6 +246,7 @@ void setup() {
   Serial.println("____Setup____");
   // Initialize the camera wifi and connection to Server
   configESPCamera();
+  initMicroSDCard();
   initWifi();
   Serial.println("");
 }
@@ -246,6 +268,22 @@ void takeNewPhoto(int send)
 
   if (send)
   {
+    // Save picture to microSD card for compared at what is send
+    fs::FS &fs = SD_MMC;
+    char* path = "test.jpg";
+    File file = fs.open(path, FILE_WRITE);
+    if (!file) 
+    {
+      Serial.println("Failed to open file in write mode");
+      return;
+    }
+    else 
+    {
+      file.write(fb->buf, fb->len);
+    }
+    file.close();
+
+    // Send Image
     uint8_t request[7];
     request[0] = START_REQUEST;
     request[1] = ASK_POSITION;
