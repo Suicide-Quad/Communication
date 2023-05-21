@@ -2,13 +2,12 @@
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
 #include "secret.h"
-#include "client.ino"
 
 #define LED_BUILTIN 2
 #define BUFFERSIZE 128 
 
 //Your Domain name with URL path or IP address with path
-String serverName = "http://192.168.239.3:2048/";
+String serverName = "http://192.168.43.196:2048/";
 
 String test = "23.4:234";
 
@@ -69,7 +68,7 @@ void loop() {
   sum.replace(';',' ');
   Serial.println(request);
   Serial.println(sum);
-  if (request.length() > 1 && sum == checksum(request))
+  if (1)//request.length() > 1 && sum == checksum(request))
   {
     sendRequest(request);
     Serial.println(request);

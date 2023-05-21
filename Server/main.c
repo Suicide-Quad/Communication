@@ -73,6 +73,9 @@ int main()
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port = htons(PORT_TCP);
 
+	int optval = 1;
+	setsockopt(sockfd,SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int));
+
     // Binding newly created socket to given IP and verification
     if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) {
         printf("socket bind failed...\n");

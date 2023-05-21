@@ -15,7 +15,9 @@
 
 #include <string.h>
 #include <math.h>
+#include "SPI.h"
 
+#include <HardwareSerial.h>
 
 const char* ssid = "Redmi Note 9 Pro";
 const char* password = "012345678";
@@ -24,7 +26,9 @@ const char* host = "192.168.43.96";
 const int port = 2048;
 
 WiFiClient client;
+SPIClass spi;
 
+HardwareSerial SerialSTM32(2); 
 
 #define START_REQUEST 0xFE
 
@@ -97,48 +101,49 @@ void configESPCamera()
   // Object to store the camera configuration parameters
   camera_config_t config;
 
-  config.ledc_channel = LEDC_CHANNEL_0;
-  config.ledc_timer = LEDC_TIMER_0;
-  config.pin_d0 = Y2_GPIO_NUM;
-  config.pin_d1 = Y3_GPIO_NUM;
-  config.pin_d2 = Y4_GPIO_NUM;
-  config.pin_d3 = Y5_GPIO_NUM;
-  config.pin_d4 = Y6_GPIO_NUM;
-  config.pin_d5 = Y7_GPIO_NUM;
-  config.pin_d6 = Y8_GPIO_NUM;
-  config.pin_d7 = Y9_GPIO_NUM;
-  config.pin_xclk = XCLK_GPIO_NUM;
-  config.pin_pclk = PCLK_GPIO_NUM;
-  config.pin_vsync = VSYNC_GPIO_NUM;
-  config.pin_href = HREF_GPIO_NUM;
-  config.pin_sscb_sda = SIOD_GPIO_NUM;
-  config.pin_sscb_scl = SIOC_GPIO_NUM;
-  config.pin_pwdn = PWDN_GPIO_NUM;
-  config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_JPEG; // Choices are YUV422, GRAYSCALE, RGB565, JPEG
+  esp_err_t err;
 
-  // Select lower framesize if the camera doesn't support PSRAM
-  if (psramFound()) 
+  do
   {
-    config.frame_size = FRAMESIZE_SVGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
-    config.jpeg_quality = 10; //10-63 lower number means higher quality
-    config.fb_count = 2;
-  } else 
-  {
-    config.frame_size = FRAMESIZE_SVGA;
-    config.jpeg_quality = 12;
-    config.fb_count = 1;
-  }
+    config.ledc_channel = LEDC_CHANNEL_0;
+    config.ledc_timer = LEDC_TIMER_0;
+    config.pin_d0 = Y2_GPIO_NUM;
+    config.pin_d1 = Y3_GPIO_NUM;
+    config.pin_d2 = Y4_GPIO_NUM;
+    config.pin_d3 = Y5_GPIO_NUM;
+    config.pin_d4 = Y6_GPIO_NUM;
+    config.pin_d5 = Y7_GPIO_NUM;
+    config.pin_d6 = Y8_GPIO_NUM;
+    config.pin_d7 = Y9_GPIO_NUM;
+    config.pin_xclk = XCLK_GPIO_NUM;
+    config.pin_pclk = PCLK_GPIO_NUM;
+    config.pin_vsync = VSYNC_GPIO_NUM;
+    config.pin_href = HREF_GPIO_NUM;
+    config.pin_sscb_sda = SIOD_GPIO_NUM;
+    config.pin_sscb_scl = SIOC_GPIO_NUM;
+    config.pin_pwdn = PWDN_GPIO_NUM;
+    config.pin_reset = RESET_GPIO_NUM;
+    config.xclk_freq_hz = 20000000;
+    config.pixel_format = PIXFORMAT_JPEG; // Choices are YUV422, GRAYSCALE, RGB565, JPEG
 
-  // Initialize the Camera
-  esp_err_t err = esp_camera_init(&config);
-  while(err != ESP_OK)
-  {
+    // Select lower framesize if the camera doesn't support PSRAM
+    if (psramFound()) 
+    {
+      config.frame_size = FRAMESIZE_SVGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
+      config.jpeg_quality = 10; //10-63 lower number means higher quality
+      config.fb_count = 2;
+    } else 
+    {
+      config.frame_size = FRAMESIZE_SVGA;
+      config.jpeg_quality = 12;
+      config.fb_count = 1;
+    }
+
+    // Initialize the Camera
+    err = esp_camera_init(&config);
     delay(1000);
     Serial.print(".");
-    err = esp_camera_init(&config);
-  }
+  }while(err != ESP_OK);
 
   // Camera quality adjustments
   sensor_t * s = esp_camera_sensor_get();
@@ -240,7 +245,10 @@ void setup() {
   // Start Serial Monitor
   Serial.begin(115200);
 
-  //spi=SPIClass(VSPI);
+  //init Serial for Stm32
+  SerialSTM32.begin(115200, SERIAL_8N1, 3, 1); //rx tx 
+
+  spi=SPIClass(VSPI);
 
   Serial.println("");
   Serial.println("____Setup____");
@@ -346,39 +354,42 @@ void sendRequest(uint8_t* buffer, size_t size)
 }
 
 void loop() 
-{
-  while(Serial.available()<=0);
-  
-  enum TypeFrame type = NONE;
-  
-  int read = Serial.read();
+{  
+  int read = SerialSTM32.read();
+
+  uint8_t request2 [8] = {254, 4, read, 0, 0, 0, 64, (uint8_t)((read+64)%255)};
+  sendRequest(request2, 8);
+
+
   if (read == START_REQUEST)
   {
-    type = (TypeFrame)Serial.read();
-  }
-  if (type != NONE)
-  {
-    if (type == ASK_POSITION)                      
-    {
-      delay(500);
-      takeNewPhoto(0);
-      takeNewPhoto(0);
-      takeNewPhoto(0);
-      takeNewPhoto(1);
-    }
-    else
-    {
-      uint8_t sizeType = getSizeTypeFrame(type);
-      int sizeRequest = SIZE_REQUEST(sizeType);
-      uint8_t request [sizeRequest];
-      request[0] = START_REQUEST;
-      request[1] = type;
+      enum TypeFrame type = (TypeFrame)Serial.read();
 
-      Serial.readBytes(&request[2], sizeType/8);
+    if (type != NONE)
+    {
+      if (type == ASK_POSITION)                      
+      {
+        delay(500);
+        takeNewPhoto(0);
+        takeNewPhoto(0);
+        takeNewPhoto(0);
+        takeNewPhoto(1);
+      }
+      else
+      {
+        uint8_t sizeType = getSizeTypeFrame(type);
+        int sizeRequest = SIZE_REQUEST(sizeType);
+        uint8_t request [sizeRequest];
+        request[0] = START_REQUEST;
+        request[1] = type;
 
-      uint8_t sum = computeCheckSum(sizeType/8, &request[2]);
-      request[sizeRequest-1] = sum;
-      sendRequest(request, sizeRequest);
+        Serial.readBytes(&request[2], sizeType/8);
+
+        uint8_t sum = computeCheckSum(sizeType/8, &request[2]);
+        request[sizeRequest-1] = sum;
+        sendRequest(request, sizeRequest);
+      }
     }
   }
+  
 }
