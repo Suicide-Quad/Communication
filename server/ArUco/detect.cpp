@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
         //override cornerRefinementMethod read from config file
         detectorParams->cornerRefinementMethod = parser.get<int>("refine");
     }
-    std::cout << "Corner refinement method (0: None, 1: Subpixel, 2:contour, 3: AprilTag 2): " << detectorParams->cornerRefinementMethod << std::endl;
+    // std::cout << "Corner refinement method (0: None, 1: Subpixel, 2:contour, 3: AprilTag 2): " << detectorParams->cornerRefinementMethod << std::endl;
 
     int camId = parser.get<int>("ci");
 
@@ -131,13 +131,9 @@ int main(int argc, char *argv[]) {
         waitTime = 10;
     }
 
-    double totalTime = 0;
-    int totalIterations = 0;
-
     while(inputVideo.grab()) {
         Mat image, imageCopy;
         inputVideo.retrieve(image);
-        double tick = (double)getTickCount();
 
         vector< int > ids;
         vector< vector< Point2f > > corners, rejected;
@@ -147,13 +143,6 @@ int main(int argc, char *argv[]) {
         if(estimatePose && ids.size() > 0)
             aruco::estimatePoseSingleMarkers(corners, markerLength, camMatrix, distCoeffs, rvecs,
                                              tvecs);
-        double currentTime = ((double)getTickCount() - tick) / getTickFrequency();
-        totalTime += currentTime;
-        totalIterations++;
-        // if(totalIterations % 30 == 0) {
-        //     cout << "Detection Time = " << currentTime * 1000 << " ms "
-        //          << "(Mean = " << 1000 * totalTime / double(totalIterations) << " ms)" << endl;
-        // }
 
         // draw results
         image.copyTo(imageCopy);
