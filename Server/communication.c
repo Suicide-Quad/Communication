@@ -1,7 +1,10 @@
 #include "communication.h"
+#include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include "udp.h" 
+#include "main.h"
 
 int SizeTypeFrame [7] = {0,8,24,136,40,72,32};
 /*___GLOBAL-VAR___*/
@@ -43,6 +46,49 @@ void receiveStartBlock(uint8_t* start, uint8_t buffer[], uint8_t* pointBuffer)
 	(*pointBuffer) ++;
 }
 
+void receiveImage(uint8_t*data)
+{
+    if (receivedImage)
+    {
+        char* path = "file.jpg";
+        if (fptr == NULL)
+        {
+            fptr = fopen(path,"w");
+        }
+        for(int i = 0; i < PACKET_MAX && sizeImage > 0; i ++)
+        {
+            fputc(data[i],fptr);
+            sizeImage --;
+        }
+        if (sizeImage <= 0)
+        {
+            receivedImage = 0;
+            sizeImage = 0;
+            printf("Save image to %s\n",path);
+            fclose(fptr);
+            fptr = NULL;
+            struct PositionCommand response = {12, 14};
+            // call Davi
+            // int id = 
+            uint8_t id = 1;
+            uint8_t request[6] = {START_REQUEST, 0x2, id, response.x, response.y, 0};
+            request[5] = computeCheckSum(3, &request[2]);
+            int connfd = getFD();
+            write(connfd, request, sizeof(request));
+
+        }
+    }
+    else
+    {
+        receivedImage = 1;
+        sizeImage = data[3] << 24 ;
+        sizeImage += data[2] << 16;
+        sizeImage += data[1] << 8;
+        sizeImage += data[0];
+        printf("next send was image of size : %d\n",sizeImage);
+    }
+}
+
 void receiveType(uint8_t* data, enum TypeFrame type)
 {
 	double z = 0;
@@ -73,36 +119,7 @@ void receiveType(uint8_t* data, enum TypeFrame type)
             sendUdp(udpRequest);
             break;
         case ASK_POSITION:
-			if (receivedImage)
-			{
-				char* path = "file.jpg";
-				if (fptr == NULL)
-				{
-					fptr = fopen(path,"w");
-				}
-				for(int i = 0; i < PACKET_MAX && sizeImage > 0; i ++)
-				{
-					fputc(data[i],fptr);
-					sizeImage --;
-				}
-				if (sizeImage <= 0)
-				{
-					receivedImage = 0;
-					sizeImage = 0;
-					printf("save image to %s\n",path);
-					fclose(fptr);
-					fptr = NULL;
-				}
-			}
-			else
-			{
-				receivedImage = 1;
-				sizeImage = data[3] << 24 ;
-				sizeImage += data[2] << 16;
-				sizeImage += data[1] << 8;
-				sizeImage += data[0];
-				printf("next send was image of size : %d\n",sizeImage);
-			}
+            receiveImage(data);
             break;
         case DEBUG_INT: 
             int x = 0;

@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <signal.h>
 #include <sys/types.h>
+#include "main.h"
 
 #define PORT_TCP 2048
 #define SA struct sockaddr
@@ -27,6 +28,11 @@ void CatchSignal(int sig)
     printf("Catch\n");
     close(connfd);
     exit(0);
+}
+
+int getFD()
+{
+    return connfd;
 }
 
 void func(int connfd)
