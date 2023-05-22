@@ -48,6 +48,7 @@ void receiveStartBlock(uint8_t* start, uint8_t buffer[], uint8_t* pointBuffer)
 
 void receiveImage(uint8_t*data)
 {
+    /*
     if (receivedImage)
     {
         char* path = "file.jpg";
@@ -66,7 +67,7 @@ void receiveImage(uint8_t*data)
             sizeImage = 0;
             printf("Save image to %s\n",path);
             fclose(fptr);
-            fptr = NULL;
+            fptr = NULL;*/
             struct PositionCommand response = {12, 14};
             // call Davi
             // int id = 
@@ -75,7 +76,7 @@ void receiveImage(uint8_t*data)
             request[5] = computeCheckSum(3, &request[2]);
             int connfd = getFD();
             write(connfd, request, sizeof(request));
-
+/*
         }
     }
     else
@@ -86,7 +87,7 @@ void receiveImage(uint8_t*data)
         sizeImage += data[1] << 8;
         sizeImage += data[0];
         printf("next send was image of size : %d\n",sizeImage);
-    }
+    }*/
 }
 
 void receiveType(uint8_t* data, enum TypeFrame type)
