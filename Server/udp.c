@@ -9,7 +9,7 @@
 #include <netinet/in.h>
 #include "udp.h" 
 
-void sendUdp(uint8_t* request)
+void sendUdp(char* request)
 {
     char dest[strlen(request) + 1];
     memset(&dest,0,sizeof(dest));
