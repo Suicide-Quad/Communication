@@ -1,22 +1,19 @@
 CC=gcc
 CFLAGS=-Wall
 EXEC=main
-LDFLAGS=
+LDFLAGS= -lm
+SRC=$(shell find . -name "*.c")
+OBJ=$(patsubst %.c, %.o, $(SRC))
 
 all: $(EXEC)
 
-main: udp.o communication.o  main.o 
+main: $(OBJ)
 	$(CC) -o $@ $^ $(LDFLAGS)
-
-main.o: main.c
+	
+%.o: %.c 
 	$(CC) -c $^ $(CFLAGS)
-
-communication.o: communication.c 
-	$(CC) -c $^ $(CFLAGS)
-
-udp.o: udp.c 
-	$(CC) -c $^ $(CFLAGS)
-
+	
 clean:
 	rm -rf *.o
+	rm -rf */*.o
 	rm -rf $(EXEC)

@@ -5,10 +5,10 @@
 #include <netdb.h>
 #include <err.h>
 #include <string.h>
-#include "communication.h"
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <signal.h>
+#include "decoder.h"
 #include <sys/types.h>
 #include "main.h"
 
@@ -41,16 +41,20 @@ void func(int connfd)
     uint8_t buff[BUFFER_SIZE];
     // infinite loop for chat
     int begin = time(NULL);
+    int sizeRead;
     for (;;) {
         bzero(buff, BUFFER_SIZE);
    
         // read the message from client and copy it in buffer
-        read(connfd, buff, sizeof(buff));
-        if (buff[0] != 0)
+        sizeRead = read(connfd, buff, sizeof(buff));
+        if (sizeRead != 0)
         {
         // print buffer which contains the client contents
 
-            receiveRequest(buff);
+            for(int i = 0; i < sizeRead; i++)
+            {
+                receiveByte(buff[i]);
+            }
             //write(connfd, buff, sizeof(buff));
             bzero(buff, BUFFER_SIZE);
         }

@@ -9,7 +9,7 @@
 #include <netinet/in.h>
 #include "udp.h" 
 
-int sendUdp(char* request)
+void sendUdp(uint8_t* request)
 {
     char dest[strlen(request) + 1];
     memset(&dest,0,sizeof(dest));
@@ -18,7 +18,7 @@ int sendUdp(char* request)
     int fd = socket(AF_INET,SOCK_DGRAM,0);
     if(fd<0){
         perror("cannot open socket");
-        return 1;
+        return ;
     }
     bzero(&servaddr,sizeof(servaddr));
     servaddr.sin_family = AF_INET;
@@ -28,8 +28,7 @@ int sendUdp(char* request)
                (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0){
         perror("cannot send message");
         close(fd);
-        return 1;
+        return ;
     }
     close(fd);
-    return 0;
 }
