@@ -17,18 +17,22 @@
 #include <math.h>
 #include "SPI.h"
 
-#include <HardwareSerial.h>
+#define LED_BUILTIN 4 //33
 
-const char* ssid = "Redmi Note 9 Pro";
+const char* ssid = "vym";
+const char* password = "rozavel29";
+const char* host = "192.168.179.158";
+
+/*
+const char* ssid = "RedmiNote 9 Pro";
 const char* password = "012345678";
-
 const char* host = "192.168.43.96";
+*/
+
 const int port = 2048;
 
 WiFiClient client;
 SPIClass spi;
-
-HardwareSerial SerialSTM32(2); 
 
 #define START_REQUEST 0xFE
 
@@ -245,18 +249,18 @@ void setup() {
   // Start Serial Monitor
   Serial.begin(115200);
 
-  //init Serial for Stm32
-  SerialSTM32.begin(115200, SERIAL_8N1, 3, 1); //rx tx 
+  pinMode(LED_BUILTIN,OUTPUT);
 
   spi=SPIClass(VSPI);
 
   Serial.println("");
   Serial.println("____Setup____");
   // Initialize the camera wifi and connection to Server
-  configESPCamera();
-  initMicroSDCard();
+  //configESPCamera();
+  //initMicroSDCard();
   initWifi();
   Serial.println("");
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 
@@ -265,7 +269,7 @@ void takeNewPhoto(int send)
   // Take Picture with Camera
   Serial.println("____Photo___");
   // Setup frame buffer
-  camera_fb_t  * fb = esp_camera_fb_get();
+  int fb = 1;//camera_fb_t  * fb = esp_camera_fb_get();
 
   if (!fb) 
   {
@@ -277,9 +281,9 @@ void takeNewPhoto(int send)
   if (send)
   {
     // Save picture to microSD card for compared at what is send
-    fs::FS &fs = SD_MMC;
+    /*fs::FS &fs = SD_MMC;
     char* path = "test.jpg";
-    File file = fs.open(path, FILE_WRITE);
+    File file = fs.open(path, "w+");
     if (!file) 
     {
       Serial.println("Failed to open file in write mode");
@@ -289,35 +293,60 @@ void takeNewPhoto(int send)
     {
       file.write(fb->buf, fb->len);
     }
-    file.close();
+    file.close();*/
 
     // Send Image
     uint8_t request[7];
     request[0] = START_REQUEST;
     request[1] = ASK_POSITION;
     Serial.print("Size send image : ");
-    Serial.println(fb->len);
-    memcpy(&request[2],&fb->len,4);
+    Serial.println("0");//fb->len);
+    memcpy(&request[2],"1111",4);//&fb->len,4);
     int sum = computeCheckSum(4,&request[2]);
     request[6] = sum;
+
+
     client.write(request, 7);
     
     int nbSend = 0;
     int nbPackets = 0;
-    while (nbSend < fb-> len)
+    /*while (nbSend < fb-> len)
     {
       int atSendNow = (fb->len-nbSend < atSendNow ? fb->len-nbSend : 1460);
       client.write(&fb->buf[nbSend],atSendNow);
       nbSend += atSendNow;
       nbPackets ++;
-    }
+    }*/
     Serial.print("Image Send in ");
     Serial.print(nbPackets);
     Serial.println(" packets");
+
+    uint8_t ret;
+    int responseValide = 0;
+    while(!responseValide)
+    {
+      ret = client.read();
+      if (ret == START_REQUEST)
+      {
+        ret = client.read();
+        if ((TypeFrame)ret == RESPONSE_POSITION)
+        {
+          uint8_t data[6];
+          client.readBytes(&data[2],3);
+          data[0] = START_REQUEST;
+          data[1] = RESPONSE_POSITION;
+          data[5] = computeCheckSum(6,data);
+          Serial.println("Received Response Image");
+          for (int i = 0; i < 6; i++)
+            Serial.print(data[i]);    
+          responseValide = 1;
+        }
+      }
+    }
   }
 
   // Return the frame buffer back to the driver for reuse
-  esp_camera_fb_return(fb);
+  //esp_camera_fb_return(fb);
   if (!send)
     Serial.println("Photo taken");
   Serial.println("");
@@ -335,15 +364,6 @@ void sendRequest(uint8_t* buffer, size_t size)
       }
       
       client.write((char*)buffer, size);
-
-      delay(100);
-      
-      Serial.println("Receive from server : ");
-      while(client.available())
-      {
-        char read = client.read();
-        Serial.println(read, HEX);
-      } 
     }
     else 
     {
@@ -355,11 +375,7 @@ void sendRequest(uint8_t* buffer, size_t size)
 
 void loop() 
 {  
-  int read = SerialSTM32.read();
-
-  uint8_t request2 [8] = {254, 4, read, 0, 0, 0, 64, (uint8_t)((read+64)%255)};
-  sendRequest(request2, 8);
-
+  int read = Serial.read();
 
   if (read == START_REQUEST)
   {
@@ -370,9 +386,6 @@ void loop()
       if (type == ASK_POSITION)                      
       {
         delay(500);
-        takeNewPhoto(0);
-        takeNewPhoto(0);
-        takeNewPhoto(0);
         takeNewPhoto(1);
       }
       else
