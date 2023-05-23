@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <stdio.h>
 
 uint8_t computeCheckSum(uint8_t* data, uint32_t size)
 {

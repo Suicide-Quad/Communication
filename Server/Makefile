@@ -5,7 +5,8 @@ LDFLAGS= -lm
 SRC=$(shell find . -name "*.c")
 OBJ=$(patsubst %.c, %.o, $(SRC))
 
-all: $(EXEC)
+all: $(EXEC)	
+	./$(EXEC)
 
 main: $(OBJ)
 	$(CC) -o $@ $^ $(LDFLAGS)

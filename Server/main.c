@@ -47,6 +47,7 @@ void func(int connfd)
    
         // read the message from client and copy it in buffer
         sizeRead = read(connfd, buff, sizeof(buff));
+
         if (sizeRead != 0)
         {
         // print buffer which contains the client contents

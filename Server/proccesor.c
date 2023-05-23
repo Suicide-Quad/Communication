@@ -15,14 +15,14 @@ void processMessage(TypeRequest actualType, uint8_t* payload)
             printf("Ask Position\n");
             break;
         case DEBUG_INT:
-            uint8_t number = 0;
-            number += payload[0] << 24;
-            number += payload[0] << 16;
-            number += payload[0] << 8;
+            uint32_t number = 0;
+            number += payload[3] << 24;
+            number += payload[2] << 16;
+            number += payload[1] << 8;
             number += payload[0] ;
 
             uint8_t name = payload[4];
-            sprintf(buffer, "%d:%c", number, name); 
+            sprintf(buffer, "%c:%d",name, number); 
             sendUdp(buffer);
         default: 
             break;

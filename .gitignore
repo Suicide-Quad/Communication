@@ -1,2 +1,6 @@
 keep.txt
 main
+*tags
+*.o
+*.d
+*.png
