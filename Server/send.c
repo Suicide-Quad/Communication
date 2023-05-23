@@ -15,5 +15,6 @@ void sendData(TypeRequest actualType, uint8_t* payload)
     }
     uint8_t sum = computeCheckSum(&payload[2], actualSize);
     request[sizeof(request) -1] = sum;
+	// TODO change with send to robot
     sendUdp(request);
 }

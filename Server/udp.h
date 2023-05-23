@@ -4,5 +4,5 @@
 #define HOSTNAME "127.0.0.1" 
 #define PORT 47269 // port teleplot 
 
-void sendUdp(char* request);
+void sendUdp(uint8_t* request);
 #endif 

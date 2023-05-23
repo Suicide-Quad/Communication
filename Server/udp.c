@@ -9,11 +9,11 @@
 #include <netinet/in.h>
 #include "udp.h" 
 
-void sendUdp(char* request)
+void sendUdp(uint8_t* request)
 {
-    char dest[strlen(request) + 1];
+    char dest[strlen((char*)request) + 1];
     memset(&dest,0,sizeof(dest));
-    strcat(dest, request);
+    strcat(dest, (char*)request);
     struct sockaddr_in servaddr;
     int fd = socket(AF_INET,SOCK_DGRAM,0);
     if(fd<0){
