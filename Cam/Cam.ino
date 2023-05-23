@@ -3,18 +3,9 @@
 #include <string.h>
 #include <math.h>
 #include "WiFi.h"
-#include "Message/decoder.h"
-#include "Message/send.h"
-#include "Message/generator.h"
-#include "Message/proccesor.h"
 #include "secrets.h"
-#define LED_BUILTIN 4  //33
-#include <string.h>
-#include <math.h>
-#include <WiFi.h>
-#include "secrets.h"
-
 #define LED_BUILTIN 33
+#include "secrets.h"
 #define BUFF_SIZE 255
 
 WiFiClient client;
@@ -51,21 +42,6 @@ void setup() {
   initWifi();
   Serial.println("");
   digitalWrite(LED_BUILTIN, HIGH);
-}
-
-
-void sendData(TypeRequest actualType, uint) 
-{
-  uint8_t actualSize = getSizeType(actualType);
-  uint8_t request[3 + actualSize];
-  request[0] = START_REQUEST;
-  request[1] = actualType;
-  for (uint32_t i = 0; i < actualSize; i++) 
-  {
-    request[2 + i] = payload[i];
-  }
-  uint8_t sum = computeCheckSum(&payload[2], actualSize);
-  request[sizeof(request) - 1] = sum;
 }
 
 void loop() {
