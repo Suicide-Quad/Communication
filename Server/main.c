@@ -23,13 +23,6 @@
 
 int connfd;
 
-void CatchSignal(int sig)
-{
-    printf("Catch\n");
-    close(connfd);
-    exit(0);
-}
-
 int getFD()
 {
     return connfd;
@@ -71,8 +64,7 @@ void func(int connfd)
 // Driver function
 int main()
 {
-    signal(SIGINT, CatchSignal);
-    int sockfd;
+	int sockfd;
     socklen_t addrlen;
     struct sockaddr_in servaddr, cli;
 
