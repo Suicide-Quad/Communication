@@ -8,6 +8,7 @@
 void processMessage(TypeRequest actualType, uint8_t* payload)
 {
     char buffer[BUFF_SIZE];
+    double z;
     switch (actualType)
     {
         case ASK_POSITION: 
@@ -24,6 +25,40 @@ void processMessage(TypeRequest actualType, uint8_t* payload)
             uint8_t name = payload[4];
             sprintf(buffer, "%c:%d",name, number); 
             sendUdp(buffer);
+        case DEBUG_FLOAT:
+            double y = 0;
+            y = payload[3] << 24 ;
+            y += payload[2] << 16;
+            y += payload[1] << 8;
+            y += payload[0];
+            z = payload[7] << 24 ;
+            z += payload[6] << 16;
+            z += payload[5] << 8;
+            z += payload[4];
+            y += z / 1000000;
+            name = payload[8];
+            sprintf(buffer, "%c:%f",name, y);
+            sendUdp(buffer);            
+            break;
+        case DEBUG_POSITION:
+            double coo[2] = {0, 0};
+            for(int i = 0; i < 2; i++)
+            {
+                z = 0;
+                coo[i] = payload[3 + i * 8] << 24 ;
+                coo[i] += payload[2 + i * 8] << 16;
+                coo[i] += payload[1 + i * 8] << 8;
+                coo[i] += payload[0 + i * 8];
+                z = payload[7 + i * 8] << 24 ;
+                z += payload[6 + i * 8] << 16;
+                z += payload[5 + i * 8] << 8;
+                z += payload[4 + i * 8];
+                coo[i] += z / 1000000;
+            }
+            name = payload[16];
+            sprintf(buffer, "%c:%f:%f|xy",name, coo[0], coo[1]);
+            sendUdp(buffer);
+            break;
         default: 
             break;
     }

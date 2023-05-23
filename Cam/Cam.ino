@@ -1,28 +1,20 @@
 // Include Required Libraries
 
-
-#if defined(ARDUINO) && ARDUINO >= 100
-  #include "Arduino.h"
-#else
-  #include "WProgram.h"
-#endif
-
 #include <string.h>
 #include <math.h>
 #include "WiFi.h"
 #include "Message/decoder.h"
-#include "Message/send.h" 
+#include "Message/send.h"
 #include "Message/generator.h"
 #include "Message/proccesor.h"
-#include "secrets.h" 
-#define LED_BUILTIN 4 //33
+#include "secrets.h"
+#define LED_BUILTIN 4  //33
 
 
 WiFiClient client;
 /*___Struct and Enum___*/
 
-void initWifi()
-{
+void initWifi() {
   // Connect to Wi-Fi
   WiFi.begin(SSID, PASSWORD);
   Serial.print("Connecting to ");
@@ -36,7 +28,7 @@ void initWifi()
   Serial.println(" Wifi OK");
 
   Serial.print("Conneting to server ");
-  while(!client.connect(HOST, PORT))
+  while (!client.connect(HOST, PORT)) 
   {
     delay(1000);
     Serial.print(".");
@@ -50,7 +42,7 @@ void setup() {
   // Serial.begin(115200);
   Serial.begin(9600);
 
-  pinMode(LED_BUILTIN,OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
   Serial.println("");
   Serial.println("____Setup____");
   initWifi();
@@ -58,7 +50,21 @@ void setup() {
   digitalWrite(LED_BUILTIN, HIGH);
 }
 
-void loop() 
+
+void sendData(TypeRequest actualType, uint) 
 {
-      
+  uint8_t actualSize = getSizeType(actualType);
+  uint8_t request[3 + actualSize];
+  request[0] = START_REQUEST;
+  request[1] = actualType;
+  for (uint32_t i = 0; i < actualSize; i++) 
+  {
+    request[2 + i] = payload[i];
+  }
+  uint8_t sum = computeCheckSum(&payload[2], actualSize);
+  request[sizeof(request) - 1] = sum;
+}
+
+void loop() {
+  
 }

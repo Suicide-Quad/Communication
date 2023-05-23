@@ -5,7 +5,8 @@ LDFLAGS= -lm
 SRC=$(shell find . -name "*.c")
 OBJ=$(patsubst %.c, %.o, $(SRC))
 
-all: $(EXEC)	
+all: $(EXEC)
+	echo -e "Launch the program"
 	./$(EXEC)
 
 main: $(OBJ)

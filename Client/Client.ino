@@ -36,7 +36,7 @@ void sendRequest(String buffer)
 {
   if (buffer == "" || buffer == "\n")
     return ;
-  if(WiFi.status()== WL_CONNECTED){
+  if(WiFi.status()== WL_CONNECTED){r
       /*Serial.println("Send'");
       Serial.print(buffer);
       Serial.print("'");*/

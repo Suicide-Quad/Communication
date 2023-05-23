@@ -1,5 +1,4 @@
 #include "Message/send.h"
-#include <WProgram.h>
 
 void sendData(TypeRequest actualType, uint8_t* payload)
 {
@@ -13,8 +12,4 @@ void sendData(TypeRequest actualType, uint8_t* payload)
     }
     uint8_t sum = computeCheckSum(&payload[2], actualSize);
     request[sizeof(request) -1] = sum;
-    if (huartESP != NULL)
-        HAL_UART_Transmit_IT(huartESP, request, 3 + actualSize);
-    if (huartUSB != NULL)
-        HAL_UART_Transmit_IT(huartUSB, request, 3 + actualSize);
 }
