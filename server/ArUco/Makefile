@@ -1,18 +1,24 @@
 CC = g++
 CFLAGS = -Wall
-EXEC_NAME = test 
-INCLUDES = -I/usr/include/opencv4/
-LIBS =
-OBJ_FILES = main.o 
+EXEC_NAME = detect generate calibrate
+CFLAGS = `pkg-config --cflags opencv4`
+LIBS = `pkg-config --libs opencv4`
+OBJ_FILES = detect.o generate.o calibrate.o
 INSTALL_DIR = /usr/bin
 
-all : $(EXEC_NAME)
+all: $(EXEC_NAME)
 
-clean :
+clean:
 	rm $(EXEC_NAME) $(OBJ_FILES)
 
-$(EXEC_NAME) : $(OBJ_FILES)
-	$(CC) -o $(EXEC_NAME) $(OBJ_FILES) $(LIBS)
+detect: detect.o
+	$(CC) -o detect detect.o $(LIBS)
+
+generate: generate.o
+	$(CC) -o generate generate.o $(LIBS)
+
+calibrate: calibrate.o
+	$(CC) -o calibrate calibrate.o $(LIBS)
 
 %.o: %.cpp
 	$(CC) $(CFLAGS) $(INCLUDES) -o $@ -c $<
