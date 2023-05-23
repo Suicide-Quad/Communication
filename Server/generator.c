@@ -69,6 +69,7 @@ void sendResponsePosition(PositionCommande commande, uint8_t id)
 {
 	uint8_t payload [getSizeType(RESPONSE_POSITION)];
 
+	//getBytesFromInt(payload, -1, commande.x);
 	getBytesFromInt(payload, 0, commande.x);
 	getBytesFromInt(payload, 4, commande.y);
 

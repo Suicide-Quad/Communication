@@ -4,6 +4,7 @@
 #include "send.h"
 #include "udp.h" 
 #include <stdio.h>
+#include "generator.h"
 
 void processMessage(TypeRequest actualType, uint8_t* payload)
 {
