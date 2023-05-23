@@ -5,8 +5,7 @@
 using namespace std;
 using namespace cv;
 
-static bool readCameraParameters(string filename, Mat &camMatrix,
-                                 Mat &distCoeffs) {
+static bool readCameraParameters(string filename, Mat &camMatrix, Mat &distCoeffs) {
   FileStorage fs(filename, FileStorage::READ);
   if (!fs.isOpened())
     return false;
@@ -15,8 +14,7 @@ static bool readCameraParameters(string filename, Mat &camMatrix,
   return true;
 }
 
-static bool readDetectorParameters(string filename,
-                                   Ptr<aruco::DetectorParameters> &params) {
+static bool readDetectorParameters(string filename, Ptr<aruco::DetectorParameters> &params) {
   FileStorage fs(filename, FileStorage::READ);
   if (!fs.isOpened())
     return false;
@@ -44,7 +42,16 @@ static bool readDetectorParameters(string filename,
   return true;
 }
 
+extern "C" int detect_aruco(string filename,
+                            vector<int> ids,
+                            vector<vector<Point2f>> corners,
+                            vector<Vec3d> rvecs, vector<Vec3d> tvecs,
+                            string camera_parameters);
+
 int detect_aruco(string filename,
+                 vector<int> ids,
+                 vector<vector<Point2f>> corners,
+                 vector<Vec3d> rvecs, vector<Vec3d> tvecs,
                  string camera_parameters = "camera_calib.yaml") {
   Ptr<aruco::DetectorParameters> detectorParams =
       aruco::DetectorParameters::create();
@@ -65,18 +72,16 @@ int detect_aruco(string filename,
     cerr << "Could not open video file" << endl;
     return -1;
   }
-  Mat image, imageCopy;
+  Mat image;
   inputVideo.retrieve(image);
 
-  vector<int> ids;
-  vector<vector<Point2f>> corners, rejected;
-  vector<Vec3d> rvecs, tvecs;
+  vector<vector<Point2f>> rejected;
   // detect markers and estimate pose
-  aruco::detectMarkers(image, dictionary, corners, ids, detectorParams,
-                       rejected);
+  aruco::detectMarkers(image, dictionary, corners, ids, detectorParams, rejected);
   if (ids.size() > 0)
-    aruco::estimatePoseSingleMarkers(corners, markerLength, camMatrix,
-                                     distCoeffs, rvecs, tvecs);
+    return 0;
 
-  return 0;
+  aruco::estimatePoseSingleMarkers(corners, markerLength, camMatrix, distCoeffs, rvecs, tvecs);
+
+  return ids.size();
 }
